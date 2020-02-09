@@ -1,0 +1,25 @@
+{
+  "name": "mcpd",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "parcel src/index.html",
+    "build": "rm -rf public/*s && parcel build --no-source-maps -d public src/index.html"
+  },
+  "devDependencies": {
+    "@babel/polyfill": "^7.8.3",
+    "parcel-bundler": "^1.12.4",
+    "parcel-plugin-svelte": "^4.0.6",
+    "postcss-modules": "^1.5.0",
+    "svelte": "^3.18.1",
+    "svelte-feather-icons": "^3.2.2",
+    "tailwindcss": "^1.2.0"
+  },
+  "browserslist": [
+    "last 1 chrome versions"
+  ],
+  "dependencies": {
+    "json-format-highlight": "^1.0.4"
+  }
+}
