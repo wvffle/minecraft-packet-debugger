@@ -1,17 +1,6 @@
-import App from './App.svelte'
+import Vue from 'vue'
+import App from './App.vue'
 
-const socket = {
-  on () {
-  }
-}
-
-
-const app = new App({
-  target: document.getElementById('demo'),
-  data: {
-    name: 'world'
-  },
-  props: {
-    socket
-  }
-});
+const app = new Vue({
+  render: h => h(App)
+}).$mount('#app')
