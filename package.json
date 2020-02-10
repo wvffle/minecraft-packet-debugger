@@ -4,7 +4,7 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "start": "parcel src/index.html",
+    "start": "parcel -d public src/index.html",
     "build": "rm -rf public/*s && parcel build --no-source-maps -d public src/index.html"
   },
   "devDependencies": {

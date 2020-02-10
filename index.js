@@ -29,7 +29,7 @@ const proxyServer = protocol.createServer({
   'online-mode': false,
   port: 25566,
   keepAlive: false,
-  version: data.version
+  version: '1.12.2'
 })
 
 proxyServer.on('login', (client) => {
@@ -56,8 +56,8 @@ proxyServer.on('login', (client) => {
 
   client.on('packet', (data, meta) => {
     if (proxyClient.state === states.PLAY && meta.state === states.PLAY) {
-      broadcast('packet:server', {
-        packet: { data, meta }
+      broadcast('packet', {
+        packet: { data, meta, to: 1 }
       })
 
       if (!proxyClientEnded) proxyClient.write(meta.name, data)
@@ -66,8 +66,8 @@ proxyServer.on('login', (client) => {
 
   proxyClient.on('packet', (data, meta) => {
     if (meta.state === states.PLAY && client.state === states.PLAY) {
-      broadcast('packet:client', {
-        packet: { data, meta }
+      broadcast('packet', {
+        packet: { data, meta, to: 0 }
       })
 
       if (!clientEnded) {
@@ -93,18 +93,7 @@ proxyServer.on('login', (client) => {
 })
 
 fastify.get('/ws', { websocket: true }, async (connection, request) => {
-  let proxyClient
-  connection.socket.on('close', () => {
-    proxyClient.end()
-    proxyServer.close()
-  })
 
-  connection.socket.on('message', message => {
-    const data = msgpack.decode(message)
-    switch (data.type) {
-
-    }
-  })
 })
 
 fastify.listen(3000, err => {

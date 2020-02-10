@@ -5,11 +5,14 @@
       <span class="mr-auto">
         <TrashIcon class="stroke-1 opacity-0" size="2x"/>
       </span>
-        <span title="Turn packet listening on/off" class="cursor-pointer mr-5" @click='listening = !listening'>
-        <PlayIcon :class="{ 'text-teal-400': listening, 'hover:text-teal-400': !listening }" class="stroke-1" size="2x"/>
+        <span v-if="record.state" title="Start recording new packets" class="cursor-pointer mr-5" @click='stopRecording'>
+          <PauseCircleIcon class="stroke-1 text-teal-400" size="2x"></PauseCircleIcon>
+        </span>
+        <span v-if="!record.state" title="Start recording new packets" class="cursor-pointer mr-5" @click='startRecording'>
+          <PlayCircleIcon class="stroke-1 hover:text-teal-400" size="2x"></PlayCircleIcon>
         </span>
         <span title="Clear the packets window" class="cursor-pointer ml-auto" @click='packets = []'>
-        <TrashIcon class="stroke-1 hover:text-teal-400" size="2x"/>
+          <TrashIcon class="stroke-1 hover:text-teal-400" size="2x"></TrashIcon>
         </span>
       </div>
     </div>
@@ -25,8 +28,8 @@
           <!--          <div v-if="(searchQuery !== '' && packet.meta.name.includes(searchQuery)) || (searchQuery === '' && filters[packet.meta.name] !== true)" class="flex">-->
           <div class="flex">
 
-            <UploadCloudIcon v-if="packet.to === 'server'" class="stroke-1 mr-2 text-green-400" size="1.5x"></UploadCloudIcon>
-            <DownloadCloudIcon v-if="packet.to === 'client'" class="stroke-1 mr-2 text-blue-400" size="1.5x"></DownloadCloudIcon>
+            <UploadCloudIcon v-if="packet.to === 1" class="stroke-1 mr-2 text-green-400" size="1.5x"></UploadCloudIcon>
+            <DownloadCloudIcon v-if="packet.to === 0" class="stroke-1 mr-2 text-blue-400" size="1.5x"></DownloadCloudIcon>
 
             <pre>{{packet.meta.name}}</pre>
             <div class="ml-auto">
@@ -56,23 +59,23 @@
       </div>
       <!--      </VirtualList>-->
     </div>
-    <div class="p-5 row-span-2">
+    <div class="p-5 row-span-2 grid" style="grid-template-rows: min-content 1fr">
       <div class="text-xl pb-2">
         Filtered packets
         <span v-if="Object.keys(filters).length" @click='filters = Object.create(null)' title="Clear all filters" class="float-right cursor-pointer">
-      <TrashIcon class="stroke-1 text-gray-400 hover:text-teal-400" size="1.5x"/>
-      </span>
+          <TrashIcon class="stroke-1 text-gray-400 hover:text-teal-400" size="1.5x"></TrashIcon>
+        </span>
       </div>
-      <template v-for="packet in Object.keys(filters)">
-        <div v-if="filters[packet]" class="text-xs flex pb-3 pt-4 border-b border-gray-400">
-          <pre>{{packet}}</pre>
-          <div class="ml-auto">
-            <div class="text-red-400 cursor-pointer" @click='filters[packet] = false'>
+      <div class="overflow-y-auto h-full">
+        <template v-for="packet in Object.keys(filters)">
+          <div v-if="filters[packet]" class="text-xs flex items-center pb-3 pt-4 border-b border-gray-400">
+            <pre>{{packet}}</pre>
+            <div class="ml-auto mr-4 hover:bg-red-600 hover:text-white text-red-400 p-1 rounded cursor-pointer" @click='filters[packet] = false'>
               <XIcon size="1.2x"/>
             </div>
           </div>
-        </div>
-      </template>
+        </template>
+      </div>
     </div>
   </div>
 </template>
@@ -80,29 +83,30 @@
   import {
     FilterIcon,
     XIcon,
-    PlayIcon,
+    PlayCircleIcon,
     SearchIcon,
     TrashIcon,
     ServerIcon,
     UploadCloudIcon,
-    DownloadCloudIcon
+    DownloadCloudIcon,
+    PauseCircleIcon,
   } from 'vue-feather-icons'
   import { RecycleScroller } from 'vue-virtual-scroller'
   import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
   import formatJSON from 'json-format-highlight'
   import msgpack from 'msgpack-lite'
 
-  const ws = new WebSocket('ws://localhost:3000/ws')
   export default {
     components: {
       FilterIcon,
       XIcon,
-      PlayIcon,
+      PlayCircleIcon,
       SearchIcon,
       TrashIcon,
       ServerIcon,
       UploadCloudIcon,
       DownloadCloudIcon,
+      PauseCircleIcon,
       VirtualList: RecycleScroller
     },
     methods: {
@@ -117,6 +121,27 @@
         }
 
         this.id_open = packet
+      },
+
+      startRecording () {
+        this.ws = new WebSocket('ws://localhost:3000/ws')
+        this.record.packets = []
+        this.record.state = 1
+
+        this.ws.onmessage = async (message) => {
+          const arrayBuffer = await message.data.arrayBuffer()
+          const data = msgpack.decode(new Uint8Array(arrayBuffer))
+          this.record.packets.push(data.packet)
+        }
+
+      },
+      stopRecording () {
+        this.ws.close()
+        this.ws = null
+        this.record.state = 0
+
+        this.packets = this.record.packets
+        this.record.packets = []
       }
     },
     data () {
@@ -125,6 +150,11 @@
         listening: false,
         id_open: null,
         id_tab: 0,
+        ws: null,
+        record: {
+          packets: [],
+          state: 0
+        },
         tabs: [
           'Packet',
           'Meta'
@@ -163,20 +193,6 @@
       }
     },
     created () {
-      ws.onmessage = async (message) => {
-        const arrayBuffer = await message.data.arrayBuffer()
-        const data = msgpack.decode(new Uint8Array(arrayBuffer))
-
-        switch (data.type) {
-          case 'packet:client':
-            this.packets.push({ ...data.packet, to: 'client' })
-            break
-
-          case 'packet:server':
-            this.packets.push({ ...data.packet, to: 'server' })
-            break
-        }
-      }
     }
   }
 </script>
