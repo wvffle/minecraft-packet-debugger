@@ -29671,6 +29671,34 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 //
 //
 //
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
 var _default = {
   components: {
     FilterIcon: _vueFeatherIcons.FilterIcon,
@@ -29682,6 +29710,7 @@ var _default = {
     UploadCloudIcon: _vueFeatherIcons.UploadCloudIcon,
     DownloadCloudIcon: _vueFeatherIcons.DownloadCloudIcon,
     PauseCircleIcon: _vueFeatherIcons.PauseCircleIcon,
+    LoaderIcon: _vueFeatherIcons.LoaderIcon,
     VirtualList: _vueVirtualScroller.RecycleScroller
   },
   methods: {
@@ -29700,25 +29729,43 @@ var _default = {
     },
 
     startRecording() {
-      this.ws = new WebSocket('ws://localhost:3000/ws');
-      this.record.packets = [];
+      this.packets = [];
       this.record.state = 1;
+      this.record.messageQueue = [];
+      this.ws = new WebSocket('ws://localhost:3000/ws');
 
-      this.ws.onmessage = async message => {
-        const arrayBuffer = await message.data.arrayBuffer();
+      this.ws.onmessage = message => {
+        requestAnimationFrame(() => {
+          if (this.record.messageQueue.length > 4096) {
+            this.stopRecording();
+          }
 
-        const data = _msgpackLite.default.decode(new Uint8Array(arrayBuffer));
-
-        this.record.packets.push(data.packet);
+          this.record.messageQueue.push(message.data);
+        });
       };
     },
 
     stopRecording() {
-      this.ws.close();
-      this.ws = null;
-      this.record.state = 0;
-      this.packets = this.record.packets;
-      this.record.packets = [];
+      if (this.ws) {
+        this.ws.close();
+        this.ws = null;
+        this.record.state = 2;
+
+        const copyPackets = async () => {
+          if (this.record.messageQueue.length === 0) {
+            this.record.state = 0;
+            return;
+          }
+
+          const chunk = this.record.messageQueue.splice(0, 32);
+          const arrayBuffers = await Promise.all(chunk.map(fn => fn.arrayBuffer()));
+          const packets = arrayBuffers.map(buf => _msgpackLite.default.decode(new Uint8Array(buf)).packet);
+          this.packets.push(...packets);
+          requestAnimationFrame(copyPackets);
+        };
+
+        requestAnimationFrame(copyPackets);
+      }
     }
 
   },
@@ -29731,8 +29778,8 @@ var _default = {
       id_tab: 0,
       ws: null,
       record: {
-        packets: [],
-        state: 0
+        messageQueue: [],
+        state: -1
       },
       tabs: ['Packet', 'Meta'],
       packets: [{
@@ -29755,13 +29802,15 @@ var _default = {
         rel_entity_move: true,
         keep_alive: true,
         map_chunk: true,
+        unload_chunk: true,
         update_time: true,
         game_state_change: true,
         look: true,
         position: true,
         position_look: true,
         arm_animation: true,
-        block_change: true
+        block_change: true,
+        multi_block_change: true
       }
     };
   },
@@ -29789,6 +29838,114 @@ exports.default = _default;
       staticStyle: { "grid-template-rows": "max-content 1fr" }
     },
     [
+      _vm.record.state !== 0
+        ? _c(
+            "div",
+            {
+              staticClass:
+                "fixed top-0 left-0 h-screen w-screen  z-10 flex items-center justify-center",
+              staticStyle: { background: "rgba(255, 255, 255, .75)" }
+            },
+            [
+              _c(
+                "div",
+                {
+                  staticClass: "grid gap-2",
+                  staticStyle: { "grid-template-columns": "min-content 1fr" }
+                },
+                [
+                  _c("div", { staticClass: "flex items-center" }, [
+                    _vm.record.state === 1
+                      ? _c(
+                          "span",
+                          {
+                            staticClass: "cursor-pointer mr-5",
+                            attrs: { title: "Stop recording new packets" },
+                            on: { click: _vm.stopRecording }
+                          },
+                          [
+                            _c("PauseCircleIcon", {
+                              staticClass: "stroke-1 text-teal-400",
+                              attrs: { size: "2x" }
+                            })
+                          ],
+                          1
+                        )
+                      : _vm.record.state === -1
+                      ? _c(
+                          "span",
+                          {
+                            staticClass: "cursor-pointer mr-5",
+                            attrs: { title: "Start recording new packets" },
+                            on: { click: _vm.startRecording }
+                          },
+                          [
+                            _c("PlayCircleIcon", {
+                              staticClass: "stroke-1 text-teal-400",
+                              attrs: { size: "2x" }
+                            })
+                          ],
+                          1
+                        )
+                      : _vm.record.state === 2
+                      ? _c(
+                          "span",
+                          { staticClass: "mr-5" },
+                          [
+                            _c("LoaderIcon", {
+                              staticClass:
+                                "stroke-1 text-teal-400 loading-anim",
+                              attrs: { size: "2x" }
+                            })
+                          ],
+                          1
+                        )
+                      : _vm._e()
+                  ]),
+                  _vm._v(" "),
+                  _c("div", { staticStyle: { width: "350px" } }, [
+                    _vm.record.state === 1
+                      ? _c("div", { staticClass: "text-xl" }, [
+                          _vm._v("Stop recording packages")
+                        ])
+                      : _vm._e(),
+                    _vm._v(" "),
+                    _vm.record.state === -1
+                      ? _c("div", { staticClass: "text-xl" }, [
+                          _vm._v("Start recording packages")
+                        ])
+                      : _vm._e(),
+                    _vm._v(" "),
+                    _vm.record.state === 2
+                      ? _c("div", { staticClass: "text-xl" }, [
+                          _vm._v("Loading data")
+                        ])
+                      : _vm._e(),
+                    _vm._v(" "),
+                    _c("div", { staticClass: "text-xs mt-2 text-gray-700" }, [
+                      _vm._v(
+                        _vm._s(_vm.record.messageQueue.length) +
+                          " / 4096 (" +
+                          _vm._s((_vm.record.messageQueue.length / 40.96) ^ 0) +
+                          "%) Buffer"
+                      )
+                    ]),
+                    _vm._v(" "),
+                    _c("div", { staticClass: "bg-gray-300 h-1 rounded mt-2" }, [
+                      _c("div", {
+                        staticClass: "h-1 bg-teal-400",
+                        style: {
+                          width: _vm.record.messageQueue.length / 40.96 + "%"
+                        }
+                      })
+                    ])
+                  ])
+                ]
+              )
+            ]
+          )
+        : _vm._e(),
+      _vm._v(" "),
       _c(
         "div",
         { staticClass: "col-span-2 rounded shadow-lg bg-white px-6 py-4 my-5" },
@@ -29809,12 +29966,16 @@ exports.default = _default;
                 1
               ),
               _vm._v(" "),
-              _vm.record.state
+              _c("span", { staticClass: "mr-2" }, [
+                _vm._v("\n        Record packages\n      ")
+              ]),
+              _vm._v(" "),
+              _vm.record.state === 1
                 ? _c(
                     "span",
                     {
                       staticClass: "cursor-pointer mr-5",
-                      attrs: { title: "Start recording new packets" },
+                      attrs: { title: "Stop recording new packets" },
                       on: { click: _vm.stopRecording }
                     },
                     [
@@ -29827,7 +29988,7 @@ exports.default = _default;
                   )
                 : _vm._e(),
               _vm._v(" "),
-              !_vm.record.state
+              _vm.record.state === 0
                 ? _c(
                     "span",
                     {
@@ -29873,19 +30034,28 @@ exports.default = _default;
         "div",
         { staticClass: "rounded shadow-lg bg-white px-6 py-4 my-5 relative" },
         [
-          _c(
-            "input",
-            _vm._b(
+          _c("input", {
+            directives: [
               {
-                staticClass:
-                  "bg-white border bg-gray-200 focus:bg-white focus:border-gray-300 focus:outline-none rounded-lg py-2 pr-4 pl-10 block w-full appearance-none leading-normal placeholder-gray-600",
-                attrs: { type: "text", placeholder: "Search packets" }
-              },
-              "input",
-              _vm.searchQuery,
-              false
-            )
-          ),
+                name: "model",
+                rawName: "v-model",
+                value: _vm.searchQuery,
+                expression: "searchQuery"
+              }
+            ],
+            staticClass:
+              "bg-white border bg-gray-200 focus:bg-white focus:border-gray-300 focus:outline-none rounded-lg py-2 pr-4 pl-10 block w-full appearance-none leading-normal placeholder-gray-600",
+            attrs: { type: "text", placeholder: "Search packets" },
+            domProps: { value: _vm.searchQuery },
+            on: {
+              input: function($event) {
+                if ($event.target.composing) {
+                  return
+                }
+                _vm.searchQuery = $event.target.value
+              }
+            }
+          }),
           _vm._v(" "),
           _c("SearchIcon", {
             staticClass:
@@ -29904,137 +30074,160 @@ exports.default = _default;
           attrs: { id: "packets" }
         },
         _vm._l(_vm.packets, function(packet) {
-          return _c("div", [
-            _c(
-              "div",
-              {
-                staticClass: "py-4 px-6 cursor-pointer",
-                on: {
-                  click: function($event) {
-                    return _vm.open(packet)
-                  }
-                }
-              },
-              [
-                _c(
-                  "div",
-                  { staticClass: "flex" },
-                  [
-                    packet.to === 1
-                      ? _c("UploadCloudIcon", {
-                          staticClass: "stroke-1 mr-2 text-green-400",
-                          attrs: { size: "1.5x" }
-                        })
-                      : _vm._e(),
-                    _vm._v(" "),
-                    packet.to === 0
-                      ? _c("DownloadCloudIcon", {
-                          staticClass: "stroke-1 mr-2 text-blue-400",
-                          attrs: { size: "1.5x" }
-                        })
-                      : _vm._e(),
-                    _vm._v(" "),
-                    _c("pre", [_vm._v(_vm._s(packet.meta.name))]),
-                    _vm._v(" "),
-                    _c("div", { staticClass: "ml-auto" }, [
-                      _c(
-                        "div",
-                        {
-                          staticClass:
-                            "text-gray-400 hover:text-teal-400 cursor-pointer",
-                          on: {
-                            click: function($event) {
-                              if (
-                                !$event.type.indexOf("key") &&
-                                _vm._k(
-                                  $event.keyCode,
-                                  "stopPropagation",
-                                  undefined,
-                                  $event.key,
-                                  undefined
-                                )
-                              ) {
-                                return null
-                              }
-                              _vm.filters[packet.meta.name] = true
-                            }
+          return _c(
+            "div",
+            [
+              (_vm.searchQuery !== "" &&
+                packet.meta.name.includes(_vm.searchQuery)) ||
+              (_vm.searchQuery === "" && _vm.filters[packet.meta.name] !== true)
+                ? [
+                    _c(
+                      "div",
+                      {
+                        staticClass: "py-4 px-6 cursor-pointer",
+                        on: {
+                          click: function($event) {
+                            return _vm.open(packet)
                           }
-                        },
-                        [_c("FilterIcon", { attrs: { size: "1.2x" } })],
-                        1
-                      )
-                    ])
-                  ],
-                  1
-                )
-              ]
-            ),
-            _vm._v(" "),
-            packet === _vm.id_open
-              ? _c("div", { staticClass: "px-6" }, [
-                  _c("div", { staticClass: "border-b border-gray-200 mb-4" }),
-                  _vm._v(" "),
-                  _c(
-                    "div",
-                    {
-                      staticClass: "grid mb-4",
-                      staticStyle: {
-                        "grid-template-columns": "min-content 1fr"
-                      }
-                    },
-                    [
-                      _c(
-                        "div",
-                        _vm._l(_vm.tabs, function(tab, idx) {
-                          return _c("div", { staticClass: "flex-1 text-sm" }, [
-                            _c(
-                              "a",
-                              {
-                                staticClass: "cursor-pointer block py-2 px-8",
-                                class: {
-                                  "text-teal-400": _vm.id_tab === idx,
-                                  "hover:text-teal-400 text-gray-600":
-                                    _vm.id_tab !== idx
-                                },
-                                on: {
-                                  click: function($event) {
-                                    _vm.id_tab = idx
+                        }
+                      },
+                      [
+                        _c(
+                          "div",
+                          { staticClass: "flex" },
+                          [
+                            packet.to === 1
+                              ? _c("UploadCloudIcon", {
+                                  staticClass: "stroke-1 mr-2 text-green-400",
+                                  attrs: { size: "1.5x" }
+                                })
+                              : _vm._e(),
+                            _vm._v(" "),
+                            packet.to === 0
+                              ? _c("DownloadCloudIcon", {
+                                  staticClass: "stroke-1 mr-2 text-blue-400",
+                                  attrs: { size: "1.5x" }
+                                })
+                              : _vm._e(),
+                            _vm._v(" "),
+                            _c("pre", [_vm._v(_vm._s(packet.meta.name))]),
+                            _vm._v(" "),
+                            _c("div", { staticClass: "ml-auto" }, [
+                              _c(
+                                "div",
+                                {
+                                  staticClass:
+                                    "text-gray-400 hover:text-teal-400 cursor-pointer",
+                                  on: {
+                                    click: function($event) {
+                                      if (
+                                        !$event.type.indexOf("key") &&
+                                        _vm._k(
+                                          $event.keyCode,
+                                          "stopPropagation",
+                                          undefined,
+                                          $event.key,
+                                          undefined
+                                        )
+                                      ) {
+                                        return null
+                                      }
+                                      _vm.filters[packet.meta.name] = true
+                                    }
                                   }
-                                }
-                              },
-                              [_vm._v(_vm._s(tab))]
-                            )
-                          ])
-                        }),
-                        0
-                      ),
-                      _vm._v(" "),
-                      _c("div", { staticClass: "ml-4" }, [
-                        _vm.id_tab === 0
-                          ? _c("pre", {
-                              staticClass: "text-xs rounded bg-gray-100 p-4",
-                              domProps: {
-                                innerHTML: _vm._s(_vm.formatJSON(packet.data))
+                                },
+                                [_c("FilterIcon", { attrs: { size: "1.2x" } })],
+                                1
+                              )
+                            ])
+                          ],
+                          1
+                        )
+                      ]
+                    ),
+                    _vm._v(" "),
+                    packet === _vm.id_open
+                      ? _c("div", { staticClass: "px-6" }, [
+                          _c("div", {
+                            staticClass: "border-b border-gray-200 mb-4"
+                          }),
+                          _vm._v(" "),
+                          _c(
+                            "div",
+                            {
+                              staticClass: "grid mb-4",
+                              staticStyle: {
+                                "grid-template-columns": "min-content 1fr"
                               }
-                            })
-                          : _vm._e(),
-                        _vm._v(" "),
-                        _vm.id_tab === 1
-                          ? _c("pre", {
-                              staticClass: "text-xs rounded bg-gray-100 p-4",
-                              domProps: {
-                                innerHTML: _vm._s(_vm.formatJSON(packet.meta))
-                              }
-                            })
-                          : _vm._e()
-                      ])
-                    ]
-                  )
-                ])
-              : _vm._e(),
-            _vm._v(" "),
-            _c("div", { staticClass: "border-b border-gray-300" })
-          ])
+                            },
+                            [
+                              _c(
+                                "div",
+                                _vm._l(_vm.tabs, function(tab, idx) {
+                                  return _c(
+                                    "div",
+                                    { staticClass: "flex-1 text-sm" },
+                                    [
+                                      _c(
+                                        "a",
+                                        {
+                                          staticClass:
+                                            "cursor-pointer block py-2 px-8",
+                                          class: {
+                                            "text-teal-400": _vm.id_tab === idx,
+                                            "hover:text-teal-400 text-gray-600":
+                                              _vm.id_tab !== idx
+                                          },
+                                          on: {
+                                            click: function($event) {
+                                              _vm.id_tab = idx
+                                            }
+                                          }
+                                        },
+                                        [_vm._v(_vm._s(tab))]
+                                      )
+                                    ]
+                                  )
+                                }),
+                                0
+                              ),
+                              _vm._v(" "),
+                              _c("div", { staticClass: "ml-4" }, [
+                                _vm.id_tab === 0
+                                  ? _c("pre", {
+                                      staticClass:
+                                        "text-xs rounded bg-gray-100 p-4",
+                                      domProps: {
+                                        innerHTML: _vm._s(
+                                          _vm.formatJSON(packet.data)
+                                        )
+                                      }
+                                    })
+                                  : _vm._e(),
+                                _vm._v(" "),
+                                _vm.id_tab === 1
+                                  ? _c("pre", {
+                                      staticClass:
+                                        "text-xs rounded bg-gray-100 p-4",
+                                      domProps: {
+                                        innerHTML: _vm._s(
+                                          _vm.formatJSON(packet.meta)
+                                        )
+                                      }
+                                    })
+                                  : _vm._e()
+                              ])
+                            ]
+                          )
+                        ])
+                      : _vm._e(),
+                    _vm._v(" "),
+                    _c("div", { staticClass: "border-b border-gray-300" })
+                  ]
+                : _vm._e()
+            ],
+            2
+          )
         }),
         0
       ),

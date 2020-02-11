@@ -10909,6 +10909,20 @@ video {
   stroke-width: 1.5px;
 }
 
+.loading-anim {
+  animation: loading-spinner 1s linear infinite;
+}
+
+@keyframes loading-spinner {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
 @media (min-width: 640px) {
   .sm\:sr-only {
     position: absolute;
