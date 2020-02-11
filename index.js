@@ -4,6 +4,8 @@ const mcdata = require('minecraft-data')
 const fs = require('fs')
 const ext = require('ext-name')
 const msgpack = require('msgpack-lite')
+const envPaths = require('env-paths')('mcpd', { suffix: '' })
+const path = require('path')
 
 const { states } = protocol
 
@@ -50,6 +52,26 @@ let settings = {
   }
 }
 
+const configFile = path.join(envPaths.config, 'config.json')
+if (fs.existsSync(configFile)) {
+  settings = fs.readFileSync(configFile).toJSON()
+} else {
+  saveSettings(settings).then(({ error }) => {
+    if (error) {
+      if (error.code === 'ENOENT') {
+        fs.mkdirSync(envPaths.config)
+        saveSettings(settings).then(({ error }) => {
+          if (error) {
+            console.log(error)
+          }
+        })
+      } else {
+        console.log(error)
+      }
+    }
+  })
+}
+
 function isIgnored (packet) {
   const { world, game, entity, custom } = settings.ignoredPackets
   return world[packet] || game[packet] || entity[packet] || custom[packet]
@@ -78,11 +100,19 @@ fastify.get('/host', async (request, reply) => {
 fastify.post('/settings', async (request, reply) => {
   const data = JSON.parse(request.body)
   if (data.server.host !== settings.server.host || data.server.proxyPort !== settings.server.proxyPort) {
-    settings = data
+    const { error } = await saveSettings(data)
+    if (error) {
+      return { error }
+    }
+
     return startProxyServer()
   }
 
-  settings = data
+  const { error } = await saveSettings(data)
+  if (error) {
+    return { error }
+  }
+
   return { version: globalVersion }
 })
 
@@ -90,6 +120,15 @@ fastify.get('/:file', async (request, reply) => {
   reply.type(ext(request.params.file)[0].mime)
   return fs.createReadStream(`public/${request.params.file}`, 'utf8')
 })
+
+async function saveSettings (opts) {
+  return new Promise(resolve => {
+    settings = opts
+    fs.writeFile(configFile, opts, (err) => {
+      return resolve({ error: err })
+    })
+  })
+}
 
 let globalVersion = '0.0.0'
 let proxyServer
@@ -211,6 +250,8 @@ fastify.listen(3000, err => {
     fastify.log.error(err)
     process.exit(1)
   }
+
+  console.log(`Listening on http://localhost:3000`)
 })
 
 startProxyServer().then(({ error }) => {

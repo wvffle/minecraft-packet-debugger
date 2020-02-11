@@ -18,6 +18,7 @@
     "last 1 chrome versions"
   ],
   "dependencies": {
+    "env-paths": "^2.2.0",
     "ext-name": "^5.0.0",
     "fastify": "^2.12.0",
     "fastify-websocket": "^1.1.0",
