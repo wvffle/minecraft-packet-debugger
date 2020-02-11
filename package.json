@@ -10,30 +10,24 @@
   "devDependencies": {
     "@babel/polyfill": "^7.8.3",
     "parcel-bundler": "^1.12.4",
-    "parcel-plugin-svelte": "^4.0.6",
     "postcss-modules": "^1.5.0",
-    "svelte": "^3.18.1",
-    "svelte-feather-icons": "^3.2.2",
+    "standard": "^14.3.1",
     "tailwindcss": "^1.2.0"
   },
   "browserslist": [
     "last 1 chrome versions"
   ],
   "dependencies": {
-    "@sveltejs/svelte-virtual-list": "^3.0.1",
     "ext-name": "^5.0.0",
     "fastify": "^2.12.0",
     "fastify-websocket": "^1.1.0",
     "fastify-ws": "^1.0.3",
-    "isomorphic-ws": "^4.0.1",
     "json-format-highlight": "^1.0.4",
+    "minecraft-data": "^2.41.0",
     "minecraft-protocol": "^1.10.0",
-    "msgpack": "^1.0.3",
     "msgpack-lite": "^0.1.26",
-    "msgpack5": "^4.2.1",
-    "vu": "^0.0.0",
+    "vue": "^2.5.21",
     "vue-feather-icons": "^5.0.0",
-    "vue-virtual-scroll-list": "^1.4.4",
     "vue-virtual-scroller": "^1.0.0-rc.2"
   },
   "repository": "https://github.com/wvffle/minecraft-packet-debugger.git",
