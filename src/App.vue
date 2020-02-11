@@ -9,8 +9,10 @@
       <div>
         <div class="text-xl">Server settings</div>
         <p class="text-xs text-gray-700 my-2">Server settings</p>
-        <p class="mb-1 mt-3">Host:</p>
+        <p class="mb-1 mt-3">Target host:</p>
         <input v-model='settings.server.host' type="text" placeholder="localhost:25565" class="bg-white border-b-2 focus:border-teal-400 focus:outline-none rounded py-2 px-4 block w-full appearance-none leading-normal placeholder-gray-600 focus:shadow">
+        <p class="mb-1 mt-3">Proxy port:</p>
+        <input v-model='settings.server.proxyPort' type="text" placeholder="25566" class="bg-white border-b-2 focus:border-teal-400 focus:outline-none rounded py-2 px-4 block w-full appearance-none leading-normal placeholder-gray-600 focus:shadow">
       </div>
       <div>
         <div class="text-xl">Ignored packets (custom)</div>
