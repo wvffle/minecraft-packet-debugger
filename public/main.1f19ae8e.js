@@ -27996,6 +27996,7 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 //
 //
 //
+//
 const HOST = 'localhost:3000';
 var _default = {
   components: {
@@ -28027,6 +28028,34 @@ var _default = {
       }
 
       this.id_open = packet;
+    },
+
+    isFiltered(packet) {
+      const words = this.search.query.split(' ').filter(s => s.length);
+      const clientIndex = words.indexOf('to:client');
+      const serverIndex = words.indexOf('to:server');
+      const toClient = !!~clientIndex && !!words.splice(clientIndex, 1).length;
+      const toServer = !!~serverIndex && !!words.splice(serverIndex, 1).length;
+
+      if (toClient && toServer) {
+        return false;
+      }
+
+      if (toClient && packet.to !== 0) {
+        return false;
+      }
+
+      if (toServer && packet.to !== 1) {
+        return false;
+      }
+
+      if (!words.length) {
+        return !this.filters[packet.meta.name];
+      } else if (!words.includes(packet.meta.name)) {
+        return false;
+      }
+
+      return true;
     },
 
     startRecording() {
@@ -28100,7 +28129,9 @@ var _default = {
 
   data() {
     return {
-      searchQuery: '',
+      search: {
+        query: ''
+      },
       listening: false,
       id_open: null,
       version: '0.0.0',
@@ -28110,18 +28141,48 @@ var _default = {
       settings: null,
       record: {
         messageQueue: [],
-        state: -1
+        state: 0
       },
       tabs: ['Packet', 'Meta'],
       packets: [{
-        to: 'server',
-        data: {
-          meh: 1
+        "data": {
+          "message": "a"
         },
-        meta: {
-          name: 'dummy'
+        "meta": {
+          "size": 3,
+          "name": "chat",
+          "state": "play"
         },
-        open: false
+        "to": 1
+      }, {
+        "data": {
+          "message": "{\"extra\":[{\"color\":\"gray\",\"text\":\"» \"},{\"color\":\"dark_red\",\"text\":\"__gibbon\"},{\"text\":\" »\"},{\"color\":\"white\",\"text\":\" a\"}],\"text\":\"\"}",
+          "position": 1
+        },
+        "meta": {
+          "size": 139,
+          "name": "chat",
+          "state": "play"
+        },
+        "to": 0
+      }, {
+        "data": {
+          "action": 2,
+          "data": [{
+            "UUID": "b47bfe7c-fc86-3a58-9f12-23ef7bfb557a",
+            "name": null,
+            "properties": null,
+            "gamemode": null,
+            "ping": 1,
+            "displayName": null
+          }]
+        },
+        "meta": {
+          "size": 20,
+          "name": "player_info",
+          "state": "play"
+        },
+        "to": 0
       }],
       filters: {}
     };
@@ -28731,20 +28792,20 @@ exports.default = _default;
               {
                 name: "model",
                 rawName: "v-model",
-                value: _vm.searchQuery,
-                expression: "searchQuery"
+                value: _vm.search.query,
+                expression: "search.query"
               }
             ],
             staticClass:
               "bg-white border bg-gray-200 focus:bg-white focus:border-gray-300 focus:outline-none rounded-lg py-2 pr-4 pl-10 block w-full appearance-none leading-normal placeholder-gray-600",
             attrs: { type: "text", placeholder: "Search packets" },
-            domProps: { value: _vm.searchQuery },
+            domProps: { value: _vm.search.query },
             on: {
               input: function($event) {
                 if ($event.target.composing) {
                   return
                 }
-                _vm.searchQuery = $event.target.value
+                _vm.$set(_vm.search, "query", $event.target.value)
               }
             }
           }),
@@ -28769,9 +28830,7 @@ exports.default = _default;
           return _c(
             "div",
             [
-              (_vm.searchQuery !== "" &&
-                packet.meta.name.includes(_vm.searchQuery)) ||
-              (_vm.searchQuery === "" && _vm.filters[packet.meta.name] !== true)
+              _vm.isFiltered(packet)
                 ? [
                     _c(
                       "div",
@@ -28967,8 +29026,9 @@ exports.default = _default;
             "div",
             { staticClass: "overflow-y-auto h-full" },
             [
-              _vm._l(_vm.filters, function(_, packet) {
+              _vm._l(_vm.filters, function(packet) {
                 return [
+                  _vm._v("\n        " + _vm._s(packet) + "\n        "),
                   _vm.filters[packet]
                     ? _c(
                         "div",

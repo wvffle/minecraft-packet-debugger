@@ -133,12 +133,12 @@
       </div>
     </div>
     <div class="rounded shadow-lg bg-white px-6 py-4 my-5 relative">
-      <input v-model='searchQuery' type="text" placeholder="Search packets" class="bg-white border bg-gray-200 focus:bg-white focus:border-gray-300 focus:outline-none rounded-lg py-2 pr-4 pl-10 block w-full appearance-none leading-normal placeholder-gray-600">
+      <input v-model='search.query' type="text" placeholder="Search packets" class="bg-white border bg-gray-200 focus:bg-white focus:border-gray-300 focus:outline-none rounded-lg py-2 pr-4 pl-10 block w-full appearance-none leading-normal placeholder-gray-600">
       <SearchIcon class="absolute text-gray-600 pointer-events-none top-0 left-0 mt-6 ml-8" size="1.5x"/>
     </div>
     <div class="col-span-2 relative my-5 rounded shadow-lg overflow-y-auto max-h-full" id="packets">
       <div v-for="packet in packets">
-        <template v-if="(searchQuery !== '' && packet.meta.name.includes(searchQuery)) || (searchQuery === '' && filters[packet.meta.name] !== true)">
+        <template v-if="isFiltered(packet)">
           <!--          Transition -->
           <div class="py-4 px-6 cursor-pointer" @click='open(packet)'>
             <div class="flex">
@@ -190,7 +190,8 @@
         </div>
       </div>
       <div class="overflow-y-auto h-full">
-        <template v-for="(_, packet) in filters">
+        <template v-for="(packet) in filters">
+          {{ packet }}
           <div v-if="filters[packet]" @click='filters[packet] = false' class="flex items-center pb-3 pt-4 border-b border-gray-300 group cursor-pointer">
             <pre class="text-xs">{{packet}}</pre>
             <XIcon class="ml-auto mr-4 group-hover:bg-red-600 group-hover:text-white text-red-400 p-1 rounded" size="1.2x"></XIcon>
@@ -252,6 +253,35 @@
         }
 
         this.id_open = packet
+      },
+
+      isFiltered (packet) {
+
+        const words = this.search.query.split(' ').filter(s => s.length)
+        const clientIndex = words.indexOf('to:client')
+        const serverIndex = words.indexOf('to:server')
+        const toClient = !!~clientIndex && !!words.splice(clientIndex, 1).length
+        const toServer = !!~serverIndex && !!words.splice(serverIndex, 1).length
+
+        if (toClient && toServer) {
+          return false
+        }
+
+        if (toClient && (packet.to !== 0)) {
+          return false
+        }
+
+        if (toServer && (packet.to !== 1)) {
+          return false
+        }
+
+        if (!words.length) {
+          return !this.filters[packet.meta.name]
+        } else if (!words.includes(packet.meta.name)) {
+          return false
+        }
+
+        return true
       },
 
       startRecording () {
@@ -323,7 +353,9 @@
     },
     data () {
       return {
-        searchQuery: '',
+        search: {
+          query: '',
+        },
         listening: false,
         id_open: null,
         version: '0.0.0',
@@ -331,26 +363,10 @@
         id_tab: 0,
         ws: null,
         settings: null,
-        record: {
-          messageQueue: [],
-          state: -1
-        },
-        tabs: [
-          'Packet',
-          'Meta'
-        ],
-        packets: [{
-          to: 'server',
-          data: {
-            meh: 1
-          },
-          meta: {
-            name: 'dummy'
-          },
-          open: false
-        }],
-        filters: {
-        }
+        record: { messageQueue: [], state: 0 },
+        tabs: [ 'Packet', 'Meta' ],
+        packets: [{"data":{"message":"a"},"meta":{"size":3,"name":"chat","state":"play"},"to":1},{"data":{"message":"{\"extra\":[{\"color\":\"gray\",\"text\":\"» \"},{\"color\":\"dark_red\",\"text\":\"__gibbon\"},{\"text\":\" »\"},{\"color\":\"white\",\"text\":\" a\"}],\"text\":\"\"}","position":1},"meta":{"size":139,"name":"chat","state":"play"},"to":0},{"data":{"action":2,"data":[{"UUID":"b47bfe7c-fc86-3a58-9f12-23ef7bfb557a","name":null,"properties":null,"gamemode":null,"ping":1,"displayName":null}]},"meta":{"size":20,"name":"player_info","state":"play"},"to":0}],
+        filters: {}
       }
     },
     async created () {
