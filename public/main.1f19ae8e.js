@@ -22813,7 +22813,550 @@ function reloadCSS() {
 }
 
 module.exports = reloadCSS;
-},{"./bundle-url":"../node_modules/parcel-bundler/src/builtins/bundle-url.js"}],"../node_modules/vue-virtual-scroller/dist/vue-virtual-scroller.css":[function(require,module,exports) {
+},{"./bundle-url":"../node_modules/parcel-bundler/src/builtins/bundle-url.js"}],"../../../node_modules/vue-hot-reload-api/dist/index.js":[function(require,module,exports) {
+var Vue // late bind
+var version
+var map = Object.create(null)
+if (typeof window !== 'undefined') {
+  window.__VUE_HOT_MAP__ = map
+}
+var installed = false
+var isBrowserify = false
+var initHookName = 'beforeCreate'
+
+exports.install = function (vue, browserify) {
+  if (installed) { return }
+  installed = true
+
+  Vue = vue.__esModule ? vue.default : vue
+  version = Vue.version.split('.').map(Number)
+  isBrowserify = browserify
+
+  // compat with < 2.0.0-alpha.7
+  if (Vue.config._lifecycleHooks.indexOf('init') > -1) {
+    initHookName = 'init'
+  }
+
+  exports.compatible = version[0] >= 2
+  if (!exports.compatible) {
+    console.warn(
+      '[HMR] You are using a version of vue-hot-reload-api that is ' +
+        'only compatible with Vue.js core ^2.0.0.'
+    )
+    return
+  }
+}
+
+/**
+ * Create a record for a hot module, which keeps track of its constructor
+ * and instances
+ *
+ * @param {String} id
+ * @param {Object} options
+ */
+
+exports.createRecord = function (id, options) {
+  if(map[id]) { return }
+
+  var Ctor = null
+  if (typeof options === 'function') {
+    Ctor = options
+    options = Ctor.options
+  }
+  makeOptionsHot(id, options)
+  map[id] = {
+    Ctor: Ctor,
+    options: options,
+    instances: []
+  }
+}
+
+/**
+ * Check if module is recorded
+ *
+ * @param {String} id
+ */
+
+exports.isRecorded = function (id) {
+  return typeof map[id] !== 'undefined'
+}
+
+/**
+ * Make a Component options object hot.
+ *
+ * @param {String} id
+ * @param {Object} options
+ */
+
+function makeOptionsHot(id, options) {
+  if (options.functional) {
+    var render = options.render
+    options.render = function (h, ctx) {
+      var instances = map[id].instances
+      if (ctx && instances.indexOf(ctx.parent) < 0) {
+        instances.push(ctx.parent)
+      }
+      return render(h, ctx)
+    }
+  } else {
+    injectHook(options, initHookName, function() {
+      var record = map[id]
+      if (!record.Ctor) {
+        record.Ctor = this.constructor
+      }
+      record.instances.push(this)
+    })
+    injectHook(options, 'beforeDestroy', function() {
+      var instances = map[id].instances
+      instances.splice(instances.indexOf(this), 1)
+    })
+  }
+}
+
+/**
+ * Inject a hook to a hot reloadable component so that
+ * we can keep track of it.
+ *
+ * @param {Object} options
+ * @param {String} name
+ * @param {Function} hook
+ */
+
+function injectHook(options, name, hook) {
+  var existing = options[name]
+  options[name] = existing
+    ? Array.isArray(existing) ? existing.concat(hook) : [existing, hook]
+    : [hook]
+}
+
+function tryWrap(fn) {
+  return function (id, arg) {
+    try {
+      fn(id, arg)
+    } catch (e) {
+      console.error(e)
+      console.warn(
+        'Something went wrong during Vue component hot-reload. Full reload required.'
+      )
+    }
+  }
+}
+
+function updateOptions (oldOptions, newOptions) {
+  for (var key in oldOptions) {
+    if (!(key in newOptions)) {
+      delete oldOptions[key]
+    }
+  }
+  for (var key$1 in newOptions) {
+    oldOptions[key$1] = newOptions[key$1]
+  }
+}
+
+exports.rerender = tryWrap(function (id, options) {
+  var record = map[id]
+  if (!options) {
+    record.instances.slice().forEach(function (instance) {
+      instance.$forceUpdate()
+    })
+    return
+  }
+  if (typeof options === 'function') {
+    options = options.options
+  }
+  if (record.Ctor) {
+    record.Ctor.options.render = options.render
+    record.Ctor.options.staticRenderFns = options.staticRenderFns
+    record.instances.slice().forEach(function (instance) {
+      instance.$options.render = options.render
+      instance.$options.staticRenderFns = options.staticRenderFns
+      // reset static trees
+      // pre 2.5, all static trees are cached together on the instance
+      if (instance._staticTrees) {
+        instance._staticTrees = []
+      }
+      // 2.5.0
+      if (Array.isArray(record.Ctor.options.cached)) {
+        record.Ctor.options.cached = []
+      }
+      // 2.5.3
+      if (Array.isArray(instance.$options.cached)) {
+        instance.$options.cached = []
+      }
+
+      // post 2.5.4: v-once trees are cached on instance._staticTrees.
+      // Pure static trees are cached on the staticRenderFns array
+      // (both already reset above)
+
+      // 2.6: temporarily mark rendered scoped slots as unstable so that
+      // child components can be forced to update
+      var restore = patchScopedSlots(instance)
+      instance.$forceUpdate()
+      instance.$nextTick(restore)
+    })
+  } else {
+    // functional or no instance created yet
+    record.options.render = options.render
+    record.options.staticRenderFns = options.staticRenderFns
+
+    // handle functional component re-render
+    if (record.options.functional) {
+      // rerender with full options
+      if (Object.keys(options).length > 2) {
+        updateOptions(record.options, options)
+      } else {
+        // template-only rerender.
+        // need to inject the style injection code for CSS modules
+        // to work properly.
+        var injectStyles = record.options._injectStyles
+        if (injectStyles) {
+          var render = options.render
+          record.options.render = function (h, ctx) {
+            injectStyles.call(ctx)
+            return render(h, ctx)
+          }
+        }
+      }
+      record.options._Ctor = null
+      // 2.5.3
+      if (Array.isArray(record.options.cached)) {
+        record.options.cached = []
+      }
+      record.instances.slice().forEach(function (instance) {
+        instance.$forceUpdate()
+      })
+    }
+  }
+})
+
+exports.reload = tryWrap(function (id, options) {
+  var record = map[id]
+  if (options) {
+    if (typeof options === 'function') {
+      options = options.options
+    }
+    makeOptionsHot(id, options)
+    if (record.Ctor) {
+      if (version[1] < 2) {
+        // preserve pre 2.2 behavior for global mixin handling
+        record.Ctor.extendOptions = options
+      }
+      var newCtor = record.Ctor.super.extend(options)
+      // prevent record.options._Ctor from being overwritten accidentally
+      newCtor.options._Ctor = record.options._Ctor
+      record.Ctor.options = newCtor.options
+      record.Ctor.cid = newCtor.cid
+      record.Ctor.prototype = newCtor.prototype
+      if (newCtor.release) {
+        // temporary global mixin strategy used in < 2.0.0-alpha.6
+        newCtor.release()
+      }
+    } else {
+      updateOptions(record.options, options)
+    }
+  }
+  record.instances.slice().forEach(function (instance) {
+    if (instance.$vnode && instance.$vnode.context) {
+      instance.$vnode.context.$forceUpdate()
+    } else {
+      console.warn(
+        'Root or manually mounted instance modified. Full reload required.'
+      )
+    }
+  })
+})
+
+// 2.6 optimizes template-compiled scoped slots and skips updates if child
+// only uses scoped slots. We need to patch the scoped slots resolving helper
+// to temporarily mark all scoped slots as unstable in order to force child
+// updates.
+function patchScopedSlots (instance) {
+  if (!instance._u) { return }
+  // https://github.com/vuejs/vue/blob/dev/src/core/instance/render-helpers/resolve-scoped-slots.js
+  var original = instance._u
+  instance._u = function (slots) {
+    try {
+      // 2.6.4 ~ 2.6.6
+      return original(slots, true)
+    } catch (e) {
+      // 2.5 / >= 2.6.7
+      return original(slots, null, true)
+    }
+  }
+  return function () {
+    instance._u = original
+  }
+}
+
+},{}],"components/Search.vue":[function(require,module,exports) {
+"use strict";
+
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.default = void 0;
+
+var _vueFeatherIcons = require("vue-feather-icons");
+
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+//
+var _default = {
+  name: 'Search',
+  components: {
+    SearchIcon: _vueFeatherIcons.SearchIcon,
+    UploadCloudIcon: _vueFeatherIcons.UploadCloudIcon,
+    DownloadCloudIcon: _vueFeatherIcons.DownloadCloudIcon
+  },
+  props: {
+    packets: {
+      type: Object,
+      required: true
+    },
+    value: {
+      type: String,
+      required: true
+    }
+  },
+  watch: {
+    packets(to) {
+      this.spackets = to;
+    },
+
+    query(to) {
+      this.$emit('input', to);
+    }
+
+  },
+  computed: {
+    searchQueryWords() {
+      return this.query.split(' ');
+    },
+
+    searchQueryLastWord() {
+      return this.searchQueryWords.slice(-1)[0];
+    }
+
+  },
+  methods: {
+    searchReplaceLast(packet) {
+      const query = this.searchQueryWords;
+      query[query.length - 1] = packet;
+      this.query = query.join(' ') + ' ';
+      this.$refs.search.focus();
+      this.$nextTick(() => {
+        this.$emit('select', [packet]);
+      });
+    }
+
+  },
+
+  data() {
+    return {
+      query: '',
+      spackets: {
+        toClient: [],
+        toServer: []
+      }
+    };
+  },
+
+  created() {
+    this.spackets = this.packets;
+    this.$nextTick(() => {
+      this.$refs.search.addEventListener('keyup', evt => {
+        if (evt.key !== 'Enter') {
+          return;
+        }
+
+        const packets = this.searchQueryWords.filter(p => {
+          return this.spackets.toClient.includes(p) || this.spackets.toServer.includes(p);
+        });
+        this.$nextTick(() => {
+          this.$emit('select', packets);
+        });
+      });
+    });
+  }
+
+};
+exports.default = _default;
+        var $f15153 = exports.default || module.exports;
+      
+      if (typeof $f15153 === 'function') {
+        $f15153 = $f15153.options;
+      }
+    
+        /* template */
+        Object.assign($f15153, (function () {
+          var render = function() {
+  var _vm = this
+  var _h = _vm.$createElement
+  var _c = _vm._self._c || _h
+  return _c(
+    "div",
+    { staticClass: "relative" },
+    [
+      _vm.searchQueryLastWord !== ""
+        ? _c(
+            "div",
+            {
+              staticClass:
+                "absolute w-full left-0 rounded-b shadow bg-white mb-4 overflow-hidden overflow-y-auto",
+              staticStyle: { top: "100%", "max-height": "60vh" }
+            },
+            [
+              _c("div", { staticClass: "text-lg p-2" }, [_vm._v("to:server")]),
+              _vm._v(" "),
+              _vm._l(_vm.spackets.toServer, function(packet) {
+                return [
+                  packet.includes(_vm.searchQueryLastWord)
+                    ? _c(
+                        "div",
+                        {
+                          staticClass:
+                            "border-b border-gray-300 text-xs p-2 cursor-pointer flex",
+                          on: {
+                            click: function($event) {
+                              return _vm.searchReplaceLast(packet)
+                            }
+                          }
+                        },
+                        [
+                          _c("UploadCloudIcon", {
+                            staticClass: "stroke-1 mr-2 text-green-400",
+                            attrs: { size: "1.5x" }
+                          }),
+                          _vm._v("\n        " + _vm._s(packet) + "\n      ")
+                        ],
+                        1
+                      )
+                    : _vm._e()
+                ]
+              }),
+              _vm._v(" "),
+              _c("div", { staticClass: "text-lg p-2" }, [_vm._v("to:client")]),
+              _vm._v(" "),
+              _vm._l(_vm.spackets.toClient, function(packet) {
+                return [
+                  packet.includes(_vm.searchQueryLastWord)
+                    ? _c(
+                        "div",
+                        {
+                          staticClass:
+                            "border-b border-gray-300 text-xs p-2 cursor-pointer flex",
+                          on: {
+                            click: function($event) {
+                              return _vm.searchReplaceLast(packet)
+                            }
+                          }
+                        },
+                        [
+                          _c("DownloadCloudIcon", {
+                            staticClass: "stroke-1 mr-2 text-blue-400",
+                            attrs: { size: "1.5x" }
+                          }),
+                          _vm._v("\n        " + _vm._s(packet) + "\n      ")
+                        ],
+                        1
+                      )
+                    : _vm._e()
+                ]
+              })
+            ],
+            2
+          )
+        : _vm._e(),
+      _vm._v(" "),
+      _c("input", {
+        directives: [
+          {
+            name: "model",
+            rawName: "v-model",
+            value: _vm.query,
+            expression: "query"
+          }
+        ],
+        ref: "search",
+        staticClass:
+          "bg-white border bg-gray-200 focus:bg-white focus:border-gray-300 focus:outline-none rounded-lg py-2 pr-4 pl-10 block w-full appearance-none leading-normal placeholder-gray-600",
+        class: { "rounded-b-0": _vm.searchQueryLastWord },
+        attrs: { type: "text", placeholder: "Search packets" },
+        domProps: { value: _vm.query },
+        on: {
+          input: function($event) {
+            if ($event.target.composing) {
+              return
+            }
+            _vm.query = $event.target.value
+          }
+        }
+      }),
+      _vm._v(" "),
+      _c("SearchIcon", {
+        staticClass:
+          "absolute text-gray-600 pointer-events-none top-0 left-0 mt-2 ml-3",
+        attrs: { size: "1.5x" }
+      })
+    ],
+    1
+  )
+}
+var staticRenderFns = []
+render._withStripped = true
+
+          return {
+            render: render,
+            staticRenderFns: staticRenderFns,
+            _compiled: true,
+            _scopeId: "data-v-f15153",
+            functional: undefined
+          };
+        })());
+      
+    /* hot reload */
+    (function () {
+      if (module.hot) {
+        var api = require('vue-hot-reload-api');
+        api.install(require('vue'));
+        if (api.compatible) {
+          module.hot.accept();
+          if (!module.hot.data) {
+            api.createRecord('$f15153', $f15153);
+          } else {
+            api.reload('$f15153', $f15153);
+          }
+        }
+
+        
+        var reloadCSS = require('_css_loader');
+        module.hot.dispose(reloadCSS);
+        module.hot.accept(reloadCSS);
+      
+      }
+    })();
+},{"vue-feather-icons":"../node_modules/vue-feather-icons/dist/vue-feather-icons.es.js","_css_loader":"../node_modules/parcel-bundler/src/builtins/css-loader.js","vue-hot-reload-api":"../../../node_modules/vue-hot-reload-api/dist/index.js","vue":"../node_modules/vue/dist/vue.runtime.esm.js"}],"../node_modules/vue-virtual-scroller/dist/vue-virtual-scroller.css":[function(require,module,exports) {
 var reloadCSS = require('_css_loader');
 
 module.hot.dispose(reloadCSS);
@@ -27501,288 +28044,15 @@ exports.Decoder = require("./decoder").Decoder;
 exports.createCodec = require("./ext").createCodec;
 exports.codec = require("./codec").codec;
 
-},{"./encode":"../node_modules/msgpack-lite/lib/encode.js","./decode":"../node_modules/msgpack-lite/lib/decode.js","./encoder":"../node_modules/msgpack-lite/lib/encoder.js","./decoder":"../node_modules/msgpack-lite/lib/decoder.js","./ext":"../node_modules/msgpack-lite/lib/ext.js","./codec":"../node_modules/msgpack-lite/lib/codec.js"}],"../../../node_modules/vue-hot-reload-api/dist/index.js":[function(require,module,exports) {
-var Vue // late bind
-var version
-var map = Object.create(null)
-if (typeof window !== 'undefined') {
-  window.__VUE_HOT_MAP__ = map
-}
-var installed = false
-var isBrowserify = false
-var initHookName = 'beforeCreate'
-
-exports.install = function (vue, browserify) {
-  if (installed) { return }
-  installed = true
-
-  Vue = vue.__esModule ? vue.default : vue
-  version = Vue.version.split('.').map(Number)
-  isBrowserify = browserify
-
-  // compat with < 2.0.0-alpha.7
-  if (Vue.config._lifecycleHooks.indexOf('init') > -1) {
-    initHookName = 'init'
-  }
-
-  exports.compatible = version[0] >= 2
-  if (!exports.compatible) {
-    console.warn(
-      '[HMR] You are using a version of vue-hot-reload-api that is ' +
-        'only compatible with Vue.js core ^2.0.0.'
-    )
-    return
-  }
-}
-
-/**
- * Create a record for a hot module, which keeps track of its constructor
- * and instances
- *
- * @param {String} id
- * @param {Object} options
- */
-
-exports.createRecord = function (id, options) {
-  if(map[id]) { return }
-
-  var Ctor = null
-  if (typeof options === 'function') {
-    Ctor = options
-    options = Ctor.options
-  }
-  makeOptionsHot(id, options)
-  map[id] = {
-    Ctor: Ctor,
-    options: options,
-    instances: []
-  }
-}
-
-/**
- * Check if module is recorded
- *
- * @param {String} id
- */
-
-exports.isRecorded = function (id) {
-  return typeof map[id] !== 'undefined'
-}
-
-/**
- * Make a Component options object hot.
- *
- * @param {String} id
- * @param {Object} options
- */
-
-function makeOptionsHot(id, options) {
-  if (options.functional) {
-    var render = options.render
-    options.render = function (h, ctx) {
-      var instances = map[id].instances
-      if (ctx && instances.indexOf(ctx.parent) < 0) {
-        instances.push(ctx.parent)
-      }
-      return render(h, ctx)
-    }
-  } else {
-    injectHook(options, initHookName, function() {
-      var record = map[id]
-      if (!record.Ctor) {
-        record.Ctor = this.constructor
-      }
-      record.instances.push(this)
-    })
-    injectHook(options, 'beforeDestroy', function() {
-      var instances = map[id].instances
-      instances.splice(instances.indexOf(this), 1)
-    })
-  }
-}
-
-/**
- * Inject a hook to a hot reloadable component so that
- * we can keep track of it.
- *
- * @param {Object} options
- * @param {String} name
- * @param {Function} hook
- */
-
-function injectHook(options, name, hook) {
-  var existing = options[name]
-  options[name] = existing
-    ? Array.isArray(existing) ? existing.concat(hook) : [existing, hook]
-    : [hook]
-}
-
-function tryWrap(fn) {
-  return function (id, arg) {
-    try {
-      fn(id, arg)
-    } catch (e) {
-      console.error(e)
-      console.warn(
-        'Something went wrong during Vue component hot-reload. Full reload required.'
-      )
-    }
-  }
-}
-
-function updateOptions (oldOptions, newOptions) {
-  for (var key in oldOptions) {
-    if (!(key in newOptions)) {
-      delete oldOptions[key]
-    }
-  }
-  for (var key$1 in newOptions) {
-    oldOptions[key$1] = newOptions[key$1]
-  }
-}
-
-exports.rerender = tryWrap(function (id, options) {
-  var record = map[id]
-  if (!options) {
-    record.instances.slice().forEach(function (instance) {
-      instance.$forceUpdate()
-    })
-    return
-  }
-  if (typeof options === 'function') {
-    options = options.options
-  }
-  if (record.Ctor) {
-    record.Ctor.options.render = options.render
-    record.Ctor.options.staticRenderFns = options.staticRenderFns
-    record.instances.slice().forEach(function (instance) {
-      instance.$options.render = options.render
-      instance.$options.staticRenderFns = options.staticRenderFns
-      // reset static trees
-      // pre 2.5, all static trees are cached together on the instance
-      if (instance._staticTrees) {
-        instance._staticTrees = []
-      }
-      // 2.5.0
-      if (Array.isArray(record.Ctor.options.cached)) {
-        record.Ctor.options.cached = []
-      }
-      // 2.5.3
-      if (Array.isArray(instance.$options.cached)) {
-        instance.$options.cached = []
-      }
-
-      // post 2.5.4: v-once trees are cached on instance._staticTrees.
-      // Pure static trees are cached on the staticRenderFns array
-      // (both already reset above)
-
-      // 2.6: temporarily mark rendered scoped slots as unstable so that
-      // child components can be forced to update
-      var restore = patchScopedSlots(instance)
-      instance.$forceUpdate()
-      instance.$nextTick(restore)
-    })
-  } else {
-    // functional or no instance created yet
-    record.options.render = options.render
-    record.options.staticRenderFns = options.staticRenderFns
-
-    // handle functional component re-render
-    if (record.options.functional) {
-      // rerender with full options
-      if (Object.keys(options).length > 2) {
-        updateOptions(record.options, options)
-      } else {
-        // template-only rerender.
-        // need to inject the style injection code for CSS modules
-        // to work properly.
-        var injectStyles = record.options._injectStyles
-        if (injectStyles) {
-          var render = options.render
-          record.options.render = function (h, ctx) {
-            injectStyles.call(ctx)
-            return render(h, ctx)
-          }
-        }
-      }
-      record.options._Ctor = null
-      // 2.5.3
-      if (Array.isArray(record.options.cached)) {
-        record.options.cached = []
-      }
-      record.instances.slice().forEach(function (instance) {
-        instance.$forceUpdate()
-      })
-    }
-  }
-})
-
-exports.reload = tryWrap(function (id, options) {
-  var record = map[id]
-  if (options) {
-    if (typeof options === 'function') {
-      options = options.options
-    }
-    makeOptionsHot(id, options)
-    if (record.Ctor) {
-      if (version[1] < 2) {
-        // preserve pre 2.2 behavior for global mixin handling
-        record.Ctor.extendOptions = options
-      }
-      var newCtor = record.Ctor.super.extend(options)
-      // prevent record.options._Ctor from being overwritten accidentally
-      newCtor.options._Ctor = record.options._Ctor
-      record.Ctor.options = newCtor.options
-      record.Ctor.cid = newCtor.cid
-      record.Ctor.prototype = newCtor.prototype
-      if (newCtor.release) {
-        // temporary global mixin strategy used in < 2.0.0-alpha.6
-        newCtor.release()
-      }
-    } else {
-      updateOptions(record.options, options)
-    }
-  }
-  record.instances.slice().forEach(function (instance) {
-    if (instance.$vnode && instance.$vnode.context) {
-      instance.$vnode.context.$forceUpdate()
-    } else {
-      console.warn(
-        'Root or manually mounted instance modified. Full reload required.'
-      )
-    }
-  })
-})
-
-// 2.6 optimizes template-compiled scoped slots and skips updates if child
-// only uses scoped slots. We need to patch the scoped slots resolving helper
-// to temporarily mark all scoped slots as unstable in order to force child
-// updates.
-function patchScopedSlots (instance) {
-  if (!instance._u) { return }
-  // https://github.com/vuejs/vue/blob/dev/src/core/instance/render-helpers/resolve-scoped-slots.js
-  var original = instance._u
-  instance._u = function (slots) {
-    try {
-      // 2.6.4 ~ 2.6.6
-      return original(slots, true)
-    } catch (e) {
-      // 2.5 / >= 2.6.7
-      return original(slots, null, true)
-    }
-  }
-  return function () {
-    instance._u = original
-  }
-}
-
-},{}],"App.vue":[function(require,module,exports) {
+},{"./encode":"../node_modules/msgpack-lite/lib/encode.js","./decode":"../node_modules/msgpack-lite/lib/decode.js","./encoder":"../node_modules/msgpack-lite/lib/encoder.js","./decoder":"../node_modules/msgpack-lite/lib/decoder.js","./ext":"../node_modules/msgpack-lite/lib/ext.js","./codec":"../node_modules/msgpack-lite/lib/codec.js"}],"App.vue":[function(require,module,exports) {
 "use strict";
 
 Object.defineProperty(exports, "__esModule", {
   value: true
 });
 exports.default = void 0;
+
+var _Search = _interopRequireDefault(require("./components/Search"));
 
 var _vueFeatherIcons = require("vue-feather-icons");
 
@@ -27794,8 +28064,6 @@ var _msgpackLite = _interopRequireDefault(require("msgpack-lite"));
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
-//
-//
 //
 //
 //
@@ -28013,7 +28281,8 @@ var _default = {
     SettingsIcon: _vueFeatherIcons.SettingsIcon,
     SquareIcon: _vueFeatherIcons.SquareIcon,
     CheckSquareIcon: _vueFeatherIcons.CheckSquareIcon,
-    SaveIcon: _vueFeatherIcons.SaveIcon
+    SaveIcon: _vueFeatherIcons.SaveIcon,
+    Search: _Search.default
   },
   methods: {
     formatJSON(...args) {
@@ -28098,6 +28367,16 @@ var _default = {
       }
     },
 
+    settingsSelectPacket(packets) {
+      for (const packet of packets) {
+        this.settings.ignoredPackets.custom[packet] = true;
+      }
+
+      this.$nextTick(() => {
+        this.search.query = '';
+      });
+    },
+
     async openSettings() {
       const response = await fetch(`http://${HOST}/settings`);
       this.settings = await response.json();
@@ -28106,7 +28385,8 @@ var _default = {
     async closeSettings() {
       const {
         settings: body
-      } = this; // Waiting for server to restart everything
+      } = this;
+      this.search.query = ''; // Waiting for server to restart everything
 
       const res = await fetch(`http://${HOST}/settings`, {
         method: 'post',
@@ -28120,6 +28400,10 @@ var _default = {
       } else {
         this.version = data.version;
         this.host = body.server.host;
+
+        if (data.packets) {
+          this.search.packets = data.packets;
+        }
       }
 
       this.settings = null;
@@ -28130,7 +28414,11 @@ var _default = {
   data() {
     return {
       search: {
-        query: ''
+        query: '',
+        packets: {
+          toServer: [],
+          toClient: []
+        }
       },
       listening: false,
       id_open: null,
@@ -28141,7 +28429,7 @@ var _default = {
       settings: null,
       record: {
         messageQueue: [],
-        state: -1
+        state: 0
       },
       tabs: ['Packet', 'Meta'],
       packets: [],
@@ -28154,6 +28442,10 @@ var _default = {
     const data = await res.json();
     this.version = data.version;
     this.host = data.host;
+
+    if (data.packets) {
+      this.search.packets = data.packets;
+    }
   }
 
 };
@@ -28284,33 +28576,17 @@ exports.default = _default;
                     "div",
                     { staticClass: "relative mb-4" },
                     [
-                      _c("input", {
-                        directives: [
-                          {
-                            name: "model",
-                            rawName: "v-model",
-                            value: _vm.searchQuery,
-                            expression: "searchQuery"
-                          }
-                        ],
-                        staticClass:
-                          "bg-white border bg-gray-200 focus:bg-white focus:border-gray-300 focus:outline-none rounded-lg py-2 pr-4 pl-10 block w-full appearance-none leading-normal placeholder-gray-600",
-                        attrs: { type: "text", placeholder: "Add packets" },
-                        domProps: { value: _vm.searchQuery },
-                        on: {
-                          input: function($event) {
-                            if ($event.target.composing) {
-                              return
-                            }
-                            _vm.searchQuery = $event.target.value
-                          }
+                      _c("search", {
+                        ref: "settingsSearch",
+                        attrs: { packets: _vm.search.packets },
+                        on: { select: _vm.settingsSelectPacket },
+                        model: {
+                          value: _vm.search.query,
+                          callback: function($$v) {
+                            _vm.$set(_vm.search, "query", $$v)
+                          },
+                          expression: "search.query"
                         }
-                      }),
-                      _vm._v(" "),
-                      _c("SearchIcon", {
-                        staticClass:
-                          "absolute text-gray-600 pointer-events-none top-0 left-0 mt-2 ml-3",
-                        attrs: { size: "1.5x" }
                       })
                     ],
                     1
@@ -28748,33 +29024,15 @@ exports.default = _default;
         "div",
         { staticClass: "rounded shadow-lg bg-white px-6 py-4 my-5 relative" },
         [
-          _c("input", {
-            directives: [
-              {
-                name: "model",
-                rawName: "v-model",
-                value: _vm.search.query,
-                expression: "search.query"
-              }
-            ],
-            staticClass:
-              "bg-white border bg-gray-200 focus:bg-white focus:border-gray-300 focus:outline-none rounded-lg py-2 pr-4 pl-10 block w-full appearance-none leading-normal placeholder-gray-600",
-            attrs: { type: "text", placeholder: "Search packets" },
-            domProps: { value: _vm.search.query },
-            on: {
-              input: function($event) {
-                if ($event.target.composing) {
-                  return
-                }
-                _vm.$set(_vm.search, "query", $event.target.value)
-              }
+          _c("search", {
+            attrs: { packets: _vm.search.packets },
+            model: {
+              value: _vm.search.query,
+              callback: function($$v) {
+                _vm.$set(_vm.search, "query", $$v)
+              },
+              expression: "search.query"
             }
-          }),
-          _vm._v(" "),
-          _c("SearchIcon", {
-            staticClass:
-              "absolute text-gray-600 pointer-events-none top-0 left-0 mt-6 ml-8",
-            attrs: { size: "1.5x" }
           })
         ],
         1
@@ -29100,7 +29358,7 @@ render._withStripped = true
         
       }
     })();
-},{"vue-feather-icons":"../node_modules/vue-feather-icons/dist/vue-feather-icons.es.js","vue-virtual-scroller/dist/vue-virtual-scroller.css":"../node_modules/vue-virtual-scroller/dist/vue-virtual-scroller.css","json-format-highlight":"../node_modules/json-format-highlight/dist/json-format-highlight.js","msgpack-lite":"../node_modules/msgpack-lite/lib/browser.js","_css_loader":"../node_modules/parcel-bundler/src/builtins/css-loader.js","vue-hot-reload-api":"../../../node_modules/vue-hot-reload-api/dist/index.js","vue":"../node_modules/vue/dist/vue.runtime.esm.js"}],"main.js":[function(require,module,exports) {
+},{"./components/Search":"components/Search.vue","vue-feather-icons":"../node_modules/vue-feather-icons/dist/vue-feather-icons.es.js","vue-virtual-scroller/dist/vue-virtual-scroller.css":"../node_modules/vue-virtual-scroller/dist/vue-virtual-scroller.css","json-format-highlight":"../node_modules/json-format-highlight/dist/json-format-highlight.js","msgpack-lite":"../node_modules/msgpack-lite/lib/browser.js","_css_loader":"../node_modules/parcel-bundler/src/builtins/css-loader.js","vue-hot-reload-api":"../../../node_modules/vue-hot-reload-api/dist/index.js","vue":"../node_modules/vue/dist/vue.runtime.esm.js"}],"main.js":[function(require,module,exports) {
 "use strict";
 
 var _vue = _interopRequireDefault(require("vue"));
@@ -29140,7 +29398,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34159" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36441" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};

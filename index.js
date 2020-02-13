@@ -94,7 +94,7 @@ fastify.get('/settings', async (request, reply) => {
 })
 
 fastify.get('/host', async (request, reply) => {
-  return { host: settings.server.host, version: globalVersion }
+  return { host: settings.server.host, version: globalVersion, packets: getPackets(globalVersion) }
 })
 
 fastify.post('/settings', async (request, reply) => {
@@ -113,13 +113,32 @@ fastify.post('/settings', async (request, reply) => {
     return { error }
   }
 
-  return { version: globalVersion }
+  return { version: globalVersion, packets: getPackets(globalVersion) }
 })
 
 fastify.get('/:file', async (request, reply) => {
   reply.type(ext(request.params.file)[0].mime)
   return fs.createReadStream(`public/${request.params.file}`, 'utf8')
 })
+
+const packets = {}
+function getPackets (version) {
+  if (packets[version]) {
+    return packets[version]
+  }
+
+  try {
+    const protocol = require(`minecraft-data/minecraft-data/data/pc/${version}/protocol`)
+    packets[version] = {
+      toClient: Object.keys(protocol.play.toClient.types).map(p =>p.slice(7)).filter(p => p),
+      toServer: Object.keys(protocol.play.toServer.types).map(p =>p.slice(7)).filter(p => p)
+    }
+
+    return packets[version]
+  } catch {
+    return null
+  }
+}
 
 async function saveSettings (opts) {
   return new Promise(resolve => {
@@ -236,7 +255,7 @@ async function startProxyServer () {
       }
 
       await createProxyServer(+settings.server.proxyPort, version.minecraftVersion)
-      return resolve({ version: version.minecraftVersion })
+      return resolve({ version: version.minecraftVersion, packets: getPackets(version.minecraftVersion) })
     })
   })
 }

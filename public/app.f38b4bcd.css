@@ -11657,6 +11657,11 @@ video {
   animation: loading-spinner 1s linear infinite;
 }
 
+.rounded-b-0 {
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
 @keyframes loading-spinner {
   0% {
     transform: rotate(0deg);

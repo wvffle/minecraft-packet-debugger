@@ -18,8 +18,7 @@
         <div class="text-xl">Ignored packets (custom)</div>
         <p class="text-xs text-gray-700 my-2">Packets that will not be sent by server to the debugger.</p>
         <div class="relative mb-4">
-          <input v-model='searchQuery' type="text" placeholder="Add packets" class="bg-white border bg-gray-200 focus:bg-white focus:border-gray-300 focus:outline-none rounded-lg py-2 pr-4 pl-10 block w-full appearance-none leading-normal placeholder-gray-600">
-          <SearchIcon class="absolute text-gray-600 pointer-events-none top-0 left-0 mt-2 ml-3" size="1.5x"/>
+          <search :packets="search.packets" v-model="search.query" ref="settingsSearch" @select="settingsSelectPacket"></search>
         </div>
 
         <div class="overflow-y-auto">
@@ -133,8 +132,7 @@
       </div>
     </div>
     <div class="rounded shadow-lg bg-white px-6 py-4 my-5 relative">
-      <input v-model='search.query' type="text" placeholder="Search packets" class="bg-white border bg-gray-200 focus:bg-white focus:border-gray-300 focus:outline-none rounded-lg py-2 pr-4 pl-10 block w-full appearance-none leading-normal placeholder-gray-600">
-      <SearchIcon class="absolute text-gray-600 pointer-events-none top-0 left-0 mt-6 ml-8" size="1.5x"/>
+      <search :packets="search.packets" v-model="search.query"></search>
     </div>
     <div class="col-span-2 relative my-5 rounded shadow-lg overflow-y-auto max-h-full" id="packets">
       <div v-for="packet in packets">
@@ -202,6 +200,7 @@
   </div>
 </template>
 <script>
+  import Search from './components/Search'
   import {
     FilterIcon,
     XIcon,
@@ -239,7 +238,8 @@
       SettingsIcon,
       SquareIcon,
       CheckSquareIcon,
-      SaveIcon
+      SaveIcon,
+      Search
     },
     methods: {
       formatJSON (...args) {
@@ -325,12 +325,23 @@
           requestAnimationFrame(copyPackets)
         }
       },
+      settingsSelectPacket (packets) {
+        for (const packet of packets) {
+          this.settings.ignoredPackets.custom[packet] = true
+        }
+
+        this.$nextTick(() => {
+          this.search.query = ''
+        })
+      },
+
       async openSettings () {
         const response = await fetch(`http://${HOST}/settings`)
         this.settings = await response.json()
       },
       async closeSettings () {
         const { settings: body } = this
+        this.search.query = ''
 
         // Waiting for server to restart everything
         const res = await fetch(`http://${HOST}/settings`, {
@@ -346,6 +357,10 @@
         } else {
           this.version = data.version
           this.host = body.server.host
+
+          if (data.packets) {
+            this.search.packets = data.packets
+          }
         }
 
         this.settings = null
@@ -355,6 +370,10 @@
       return {
         search: {
           query: '',
+          packets: {
+            toServer: [],
+            toClient: []
+          }
         },
         listening: false,
         id_open: null,
@@ -363,7 +382,7 @@
         id_tab: 0,
         ws: null,
         settings: null,
-        record: { messageQueue: [], state: -1 },
+        record: { messageQueue: [], state: 0 },
         tabs: [ 'Packet', 'Meta' ],
         packets: [],
         filters: {}
@@ -374,6 +393,10 @@
       const data = await res.json()
       this.version = data.version
       this.host = data.host
-    }
+
+      if (data.packets) {
+        this.search.packets = data.packets
+      }
+    },
   }
 </script>
