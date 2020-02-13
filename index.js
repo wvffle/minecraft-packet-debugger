@@ -54,7 +54,7 @@ let settings = {
 
 const configFile = path.join(envPaths.config, 'config.json')
 if (fs.existsSync(configFile)) {
-  settings = fs.readFileSync(configFile).toJSON()
+  settings = JSON.parse(fs.readFileSync(configFile).toString())
 } else {
   saveSettings(settings).then(({ error }) => {
     if (error) {
@@ -124,7 +124,7 @@ fastify.get('/:file', async (request, reply) => {
 async function saveSettings (opts) {
   return new Promise(resolve => {
     settings = opts
-    fs.writeFile(configFile, opts, (err) => {
+    fs.writeFile(configFile, JSON.stringify(opts), (err) => {
       return resolve({ error: err })
     })
   })

@@ -28141,49 +28141,10 @@ var _default = {
       settings: null,
       record: {
         messageQueue: [],
-        state: 0
+        state: -1
       },
       tabs: ['Packet', 'Meta'],
-      packets: [{
-        "data": {
-          "message": "a"
-        },
-        "meta": {
-          "size": 3,
-          "name": "chat",
-          "state": "play"
-        },
-        "to": 1
-      }, {
-        "data": {
-          "message": "{\"extra\":[{\"color\":\"gray\",\"text\":\"» \"},{\"color\":\"dark_red\",\"text\":\"__gibbon\"},{\"text\":\" »\"},{\"color\":\"white\",\"text\":\" a\"}],\"text\":\"\"}",
-          "position": 1
-        },
-        "meta": {
-          "size": 139,
-          "name": "chat",
-          "state": "play"
-        },
-        "to": 0
-      }, {
-        "data": {
-          "action": 2,
-          "data": [{
-            "UUID": "b47bfe7c-fc86-3a58-9f12-23ef7bfb557a",
-            "name": null,
-            "properties": null,
-            "gamemode": null,
-            "ping": 1,
-            "displayName": null
-          }]
-        },
-        "meta": {
-          "size": 20,
-          "name": "player_info",
-          "state": "play"
-        },
-        "to": 0
-      }],
+      packets: [],
       filters: {}
     };
   },
@@ -29179,7 +29140,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "43523" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "34159" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
