@@ -9,7 +9,7 @@
   "scripts": {
     "start": "parcel -d public src/index.html",
     "build": "rm -rf public/*s && parcel build --no-source-maps -d public src/index.html",
-    "prepublishOnly": "yarn build; git add public"
+    "prepublishOnly": "yarn build && git add public"
   },
   "devDependencies": {
     "@babel/polyfill": "^7.8.3",
