@@ -217,13 +217,13 @@
     CheckSquareIcon,
     SaveIcon
   } from 'vue-feather-icons'
-  import 'vue-virtual-scroller/dist/vue-virtual-scroller.css'
   import formatJSON from 'json-format-highlight'
   import msgpack from 'msgpack-lite'
 
-  const HOST = 'localhost:3000'
+  const HOST = location.port === '1234' ? 'localhost:3000' : location.host
 
   export default {
+    name: 'MinecraftPacketDebugger',
     components: {
       FilterIcon,
       XIcon,
@@ -382,7 +382,7 @@
         id_tab: 0,
         ws: null,
         settings: null,
-        record: { messageQueue: [], state: 0 },
+        record: { messageQueue: [], state: -1 },
         tabs: [ 'Packet', 'Meta' ],
         packets: [],
         filters: {}

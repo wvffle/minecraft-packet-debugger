@@ -23356,12 +23356,7 @@ render._withStripped = true
       
       }
     })();
-},{"vue-feather-icons":"../node_modules/vue-feather-icons/dist/vue-feather-icons.es.js","_css_loader":"../node_modules/parcel-bundler/src/builtins/css-loader.js","vue-hot-reload-api":"../../../node_modules/vue-hot-reload-api/dist/index.js","vue":"../node_modules/vue/dist/vue.runtime.esm.js"}],"../node_modules/vue-virtual-scroller/dist/vue-virtual-scroller.css":[function(require,module,exports) {
-var reloadCSS = require('_css_loader');
-
-module.hot.dispose(reloadCSS);
-module.hot.accept(reloadCSS);
-},{"_css_loader":"../node_modules/parcel-bundler/src/builtins/css-loader.js"}],"../node_modules/json-format-highlight/dist/json-format-highlight.js":[function(require,module,exports) {
+},{"vue-feather-icons":"../node_modules/vue-feather-icons/dist/vue-feather-icons.es.js","_css_loader":"../node_modules/parcel-bundler/src/builtins/css-loader.js","vue-hot-reload-api":"../../../node_modules/vue-hot-reload-api/dist/index.js","vue":"../node_modules/vue/dist/vue.runtime.esm.js"}],"../node_modules/json-format-highlight/dist/json-format-highlight.js":[function(require,module,exports) {
 var define;
 var global = arguments[3];
 (function (global, factory) {
@@ -28056,8 +28051,6 @@ var _Search = _interopRequireDefault(require("./components/Search"));
 
 var _vueFeatherIcons = require("vue-feather-icons");
 
-require("vue-virtual-scroller/dist/vue-virtual-scroller.css");
-
 var _jsonFormatHighlight = _interopRequireDefault(require("json-format-highlight"));
 
 var _msgpackLite = _interopRequireDefault(require("msgpack-lite"));
@@ -28265,8 +28258,9 @@ function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { de
 //
 //
 //
-const HOST = 'localhost:3000';
+const HOST = location.port === '1234' ? 'localhost:3000' : location.host;
 var _default = {
+  name: 'MinecraftPacketDebugger',
   components: {
     FilterIcon: _vueFeatherIcons.FilterIcon,
     XIcon: _vueFeatherIcons.XIcon,
@@ -28429,7 +28423,7 @@ var _default = {
       settings: null,
       record: {
         messageQueue: [],
-        state: 0
+        state: -1
       },
       tabs: ['Packet', 'Meta'],
       packets: [],
@@ -29358,7 +29352,7 @@ render._withStripped = true
         
       }
     })();
-},{"./components/Search":"components/Search.vue","vue-feather-icons":"../node_modules/vue-feather-icons/dist/vue-feather-icons.es.js","vue-virtual-scroller/dist/vue-virtual-scroller.css":"../node_modules/vue-virtual-scroller/dist/vue-virtual-scroller.css","json-format-highlight":"../node_modules/json-format-highlight/dist/json-format-highlight.js","msgpack-lite":"../node_modules/msgpack-lite/lib/browser.js","_css_loader":"../node_modules/parcel-bundler/src/builtins/css-loader.js","vue-hot-reload-api":"../../../node_modules/vue-hot-reload-api/dist/index.js","vue":"../node_modules/vue/dist/vue.runtime.esm.js"}],"main.js":[function(require,module,exports) {
+},{"./components/Search":"components/Search.vue","vue-feather-icons":"../node_modules/vue-feather-icons/dist/vue-feather-icons.es.js","json-format-highlight":"../node_modules/json-format-highlight/dist/json-format-highlight.js","msgpack-lite":"../node_modules/msgpack-lite/lib/browser.js","_css_loader":"../node_modules/parcel-bundler/src/builtins/css-loader.js","vue-hot-reload-api":"../../../node_modules/vue-hot-reload-api/dist/index.js","vue":"../node_modules/vue/dist/vue.runtime.esm.js"}],"main.js":[function(require,module,exports) {
 "use strict";
 
 var _vue = _interopRequireDefault(require("vue"));
@@ -29398,7 +29392,7 @@ var parent = module.bundle.parent;
 if ((!parent || !parent.isParcelRequire) && typeof WebSocket !== 'undefined') {
   var hostname = "" || location.hostname;
   var protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  var ws = new WebSocket(protocol + '://' + hostname + ':' + "36441" + '/');
+  var ws = new WebSocket(protocol + '://' + hostname + ':' + "39745" + '/');
 
   ws.onmessage = function (event) {
     checkedAssets = {};
