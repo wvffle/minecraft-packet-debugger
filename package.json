@@ -1,6 +1,6 @@
 {
   "name": "mcpd",
-  "version": "1.0.0-alpha.2",
+  "version": "1.0.0-alpha.3",
   "main": "index.js",
   "bin": {
     "mcpd": "bin/mcpd.js"
@@ -8,7 +8,8 @@
   "license": "MIT",
   "scripts": {
     "start": "parcel -d public src/index.html",
-    "build": "rm -rf public/*s && parcel build --no-source-maps -d public src/index.html"
+    "build": "rm -rf public/*s && parcel build --no-source-maps -d public src/index.html",
+    "prepublishOnly": "yarn build; git add public"
   },
   "devDependencies": {
     "@babel/polyfill": "^7.8.3",
