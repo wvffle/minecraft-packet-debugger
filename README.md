@@ -1,18 +1,19 @@
 # minecraft-packet-debugger
 ![screenshot](https://i.imgur.com/wFDjg2Q.png)
 
-## Installaion
-### Installation with yarn
+## Installation
+### with yarn
 ```sh
 yarn global add mcpd
 ```
 
-### Installation with npm
+### with npm
 ```sh
 npm install -g mcpd
 ```
 
 ## Usage
+#### WARNING: minecraft packet debugger is currently in alpha so expect frequent breaking changes and bugs
 Simply run `mcpd` command after installation and navigate to http://localhost:3000/
 ```shell script
 $ mcpd -h
