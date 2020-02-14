@@ -1,13 +1,13 @@
 # minecraft-packet-debugger
 ![screenshot](https://i.imgur.com/wFDjg2Q.png)
 
-## Installaion
-### Installation with yarn
+## Installation
+### with yarn
 ```sh
 yarn global add mcpd
 ```
 
-### Installation with npm
+### with npm
 ```sh
 npm install -g mcpd
 ```
