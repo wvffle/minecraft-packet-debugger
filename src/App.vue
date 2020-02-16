@@ -164,6 +164,9 @@
               <div class="ml-4">
                 <pre v-if="id_tab === 0" class="text-xs rounded bg-gray-100 p-4" v-html="formatJSON(packet.data)"></pre>
                 <pre v-if="id_tab === 1" class="text-xs rounded bg-gray-100 p-4" v-html="formatJSON(packet.meta)"></pre>
+                <pre v-if="id_tab === 2" class="text-xs p-4">
+                  <!-- TODO: Add format data -->
+                </pre>
               </div>
             </div>
           </div>
@@ -222,6 +225,7 @@
 
   const HOST = location.port === '1234' ? 'localhost:3000' : location.host
 
+  // TODO: Detect updates with npm
   export default {
     name: 'MinecraftPacketDebugger',
     components: {
@@ -383,7 +387,7 @@
         ws: null,
         settings: null,
         record: { messageQueue: [], state: -1 },
-        tabs: [ 'Packet', 'Meta' ],
+        tabs: [ 'Packet', 'Meta', 'Format' ],
         packets: [],
         filters: {}
       }
