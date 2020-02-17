@@ -4,74 +4,15 @@ const mcdata = require('minecraft-data')
 const fs = require('fs')
 const ext = require('ext-name')
 const msgpack = require('msgpack-lite')
-const envPaths = require('env-paths')('mcpd', { suffix: '' })
 const path = require('path')
+const { EventEmitter } = require('events')
 
 const { states } = protocol
 
 fastify.register(require('fastify-websocket'))
 
 module.exports = (port) => {
-  let settings = {
-    ignoredPackets: {
-      game: {
-        keep_alive: true,
-        update_time: true,
-        game_state_change: true,
-      },
 
-      world: {
-        map_chunk: true,
-        unload_chunk: true,
-        block_change: true,
-        multi_block_change: true,
-      },
-
-      entity: {
-        entity_velocity: true,
-        entity_destroy: true,
-        entity_head_rotation: true,
-        entity_teleport: true,
-        entity_status: true,
-        entity_move_look: true,
-        rel_entity_move: true,
-        entity_equipment: true,
-        entity_metadata: true,
-        entity_update_attributes: true,
-      },
-
-      custom: {
-        look: true,
-        position: true,
-        position_look: true,
-        arm_animation: true
-      }
-    },
-    server: {
-      host: 'localhost',
-      proxyPort: 25566
-    }
-  }
-
-  const configFile = path.join(envPaths.config, 'config.json')
-  if (fs.existsSync(configFile)) {
-    settings = JSON.parse(fs.readFileSync(configFile).toString())
-  } else {
-    saveSettings(settings).then(({ error }) => {
-      if (error) {
-        if (error.code === 'ENOENT') {
-          fs.mkdirSync(envPaths.config)
-          saveSettings(settings).then(({ error }) => {
-            if (error) {
-              console.log(error)
-            }
-          })
-        } else {
-          console.log(error)
-        }
-      }
-    })
-  }
 
   function isIgnored (packet) {
     const { world, game, entity, custom } = settings.ignoredPackets
@@ -122,121 +63,7 @@ module.exports = (port) => {
     return fs.createReadStream(`public/${request.params.file}`, 'utf8')
   })
 
-  const packets = {}
-  function getPackets (version) {
-    if (packets[version]) {
-      return packets[version]
-    }
-
-    try {
-      const protocol = require(`minecraft-data/minecraft-data/data/pc/${version}/protocol`)
-      packets[version] = {
-        toClient: Object.keys(protocol.play.toClient.types).map(p =>p.slice(7)).filter(p => p),
-        toServer: Object.keys(protocol.play.toServer.types).map(p =>p.slice(7)).filter(p => p)
-      }
-
-      return packets[version]
-    } catch {
-      return null
-    }
-  }
-
-  async function saveSettings (opts) {
-    return new Promise(resolve => {
-      settings = opts
-      fs.writeFile(configFile, JSON.stringify(opts), (err) => {
-        return resolve({ error: err })
-      })
-    })
-  }
-
   let globalVersion = '0.0.0'
-  let proxyServer
-  let proxyClient
-  async function createProxyServer (port, version) {
-    if (proxyServer) {
-      proxyServer.close()
-      proxyServer = null
-    }
-
-    if (proxyClient) {
-      proxyClient.end()
-      proxyClient = null
-    }
-
-    globalVersion = version
-
-    return new Promise((resolve) => {
-      proxyServer = protocol.createServer({
-        'online-mode': false,
-        keepAlive: false,
-        version,
-        port
-      })
-
-      proxyServer.on('login', (client) => {
-        let clientEnded = false
-        let proxyClientEnded = false
-
-        client.on('end', () => {
-          clientEnded = true
-          if (!proxyClientEnded) proxyClient.end()
-        })
-
-        client.on('error', (err) => {
-          console.log(err)
-          if (!proxyClientEnded) proxyClient.end()
-        })
-
-        proxyClient = protocol.createClient({
-          host: settings.server.host.split(':')[0] || 'localhost',
-          port: +settings.server.host.split(':')[1] || 25565,
-          username: client.username,
-          keepAlive: false,
-          version
-        })
-
-        client.on('packet', (data, meta) => {
-          if (proxyClient.state === states.PLAY && meta.state === states.PLAY) {
-            broadcast('packet', {
-              packet: { data, meta, to: 1 }
-            })
-
-            if (!proxyClientEnded) proxyClient.write(meta.name, data)
-          }
-        })
-
-        proxyClient.on('packet', (data, meta) => {
-          if (meta.state === states.PLAY && client.state === states.PLAY) {
-            broadcast('packet', {
-              packet: { data, meta, to: 0 }
-            })
-
-            if (!clientEnded) {
-              client.write(meta.name, data)
-
-              if (meta.name === 'set_compression') {
-                client.compressionThreshold = data.threshold
-              }
-            }
-          }
-        })
-
-        proxyClient.on('end', () => {
-          proxyClientEnded = true
-          if (!clientEnded) client.end()
-        })
-
-        proxyClient.on('error', (err) => {
-          proxyClientEnded = true
-          console.log(err)
-          if (!clientEnded) client.end()
-        })
-      })
-
-      resolve()
-    })
-  }
 
   async function startProxyServer () {
     return new Promise(resolve => {
@@ -244,16 +71,8 @@ module.exports = (port) => {
         host: settings.server.host.split(':')[0] || 'localhost',
         port: +settings.server.host.split(':')[1] || 25565
       }, async (err, result) => {
-        if (err) {
-          return resolve({ error: `Cannot ping ${settings.server.host}` })
-        }
 
         // Only supporting PC versions right now
-        const version = mcdata.versions.pc.find(({ version }) => version === result.version.protocol)
-
-        if (!version) {
-          return resolve({ error: `Cannot detect version from string ${result.version.protocol}` })
-        }
 
         await createProxyServer(+settings.server.proxyPort, version.minecraftVersion)
         return resolve({ version: version.minecraftVersion, packets: getPackets(version.minecraftVersion) })
@@ -279,4 +98,15 @@ module.exports = (port) => {
       console.log(error)
     }
   })
+}
+
+const emitter = new EventEmitter()
+module.exports = emitter
+
+emitter.on('packet', (data, meta) => {
+
+})
+
+emitter.runProxy = async function () {
+
 }

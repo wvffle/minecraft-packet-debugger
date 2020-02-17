@@ -14,6 +14,7 @@ npm install -g mcpd
 
 ## Usage
 :warning: **WARNING: minecraft packet debugger is currently in alpha so expect frequent breaking changes and bugs**
+
 Simply run `mcpd` command after installation and navigate to http://localhost:3000/
 ```shell script
 $ mcpd -h

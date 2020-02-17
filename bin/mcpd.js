@@ -13,6 +13,5 @@ if (program.port === '1234') {
   return
 }
 
-const app = require('../')
-app(+program.port || 3000)
-
+const debug = require('../')
+debug.runProxy(+program.port || 3000)
