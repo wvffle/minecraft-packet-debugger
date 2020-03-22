@@ -1,6 +1,8 @@
 # minecraft-packet-debugger
 ![screenshot](https://i.imgur.com/wFDjg2Q.png)
 
+:warning: **WARNING: minecraft packet debugger is currently in alpha so expect frequent breaking changes and bugs**
+
 ## Installation
 ### with yarn
 ```sh
@@ -12,8 +14,6 @@ yarn global add mcpd
 npm install -g mcpd
 ```
 
-## Usage
-:warning: **WARNING: minecraft packet debugger is currently in alpha so expect frequent breaking changes and bugs**
 
 Simply run `mcpd` command after installation and navigate to http://localhost:3000/
 ```shell script
@@ -25,6 +25,21 @@ Options:
   -p, --port <number>  Port to run on. Default: 3000
   -h, --help           output usage information
 ```
+
+
+## Configuration
+All Settings are stored in `$HOME/.config/mcpd/config.json`
+
+### Custom target server
+You can change that in settings
+
+### Proxy port
+You can change that in settings
+
+### Ignoring packets
+You have to go to the settings and in there, you can choose which packets should be ignored by the server.
+![ignore settings](https://i.imgur.com/YHInhe5.png)
+
 
 
 ## Packet monitoring
@@ -40,17 +55,3 @@ You can use the filter button on a packet.
 
 #### Server side
 See [Ignoring packets](#Ignoring-packets)
-
-
-## Configuration
-All Settings are stored in `$HOME/.config/mcpd/config.json`
-
-### Custom target server
-You can change that in settings
-
-### Proxy port
-You can change that in settings
-
-### Ignoring packets
-You have to go to the settings and in there, you can choose which packets should be ignored by the server.
-![ignore settings](https://i.imgur.com/YHInhe5.png)
