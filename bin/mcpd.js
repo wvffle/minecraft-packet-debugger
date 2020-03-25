@@ -2,7 +2,6 @@
 
 'use strict'
 
-
 const program = require('commander')
 program.version(require('../package.json').version)
   .option('-p, --port <number>', 'Port to run on. Default: 3000')
@@ -13,5 +12,15 @@ if (program.port === '1234') {
   return
 }
 
-const debug = require('../')
-debug.runProxy(+program.port || 3000)
+const proxy = require('../lib/proxy-server')
+const web = require('../lib/web-server')
+
+;(async function () {
+  proxy.start('1.12.2')
+  const webPort = await web.listen(program.port || 3000)
+
+  web.bindProxyInstance(proxy)
+
+  console.log(`Proxy server listening on 25566`)
+  console.log(`Web interface listening on ${webPort}`)
+})()
