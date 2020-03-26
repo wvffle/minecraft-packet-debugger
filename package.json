@@ -32,6 +32,7 @@
     "json-format-highlight": "^1.0.4",
     "minecraft-data": "^2.41.0",
     "minecraft-protocol": "^1.10.0",
+    "mkdirp": "^1.0.3",
     "msgpack-lite": "^0.1.26",
     "vue": "^2.5.21",
     "vue-feather-icons": "^5.0.0"
