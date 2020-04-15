@@ -13,7 +13,6 @@ emitter.on('packet', (data, meta) => {
 })
 
 emitter.runProxy = async function (port) {
-
   let globalVersion = '0.0.0'
 
   async function startProxyServer () {

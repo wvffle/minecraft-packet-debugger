@@ -256,6 +256,7 @@
           return this.id_open = null
         }
 
+        window.packet = packet
         this.id_open = packet
       },
 
