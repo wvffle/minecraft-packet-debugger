@@ -153,7 +153,7 @@
             </div>
           </div>
           <!--        Transition -->
-          <div v-if="packet === id_open" class="px-6">
+          <div v-if="open_ids.includes(packet)" class="px-6">
             <div class="border-b border-gray-200 mb-4"></div>
             <div class="grid mb-4" style="grid-template-columns:min-content 1fr">
               <div>
@@ -252,12 +252,11 @@
       open (packet) {
         this.id_tab = 0
 
-        if (this.id_open === packet) {
-          return this.id_open = null
+        if (this.open_ids.includes(packet)){
+          const index = this.open_ids.indexOf(packet);
+          return this.open_ids.splice(index, 1);
         }
-
-        window.packet = packet
-        this.id_open = packet
+        this.open_ids.push(packet);
       },
 
       isFiltered (packet) {
@@ -381,7 +380,7 @@
           }
         },
         listening: false,
-        id_open: null,
+        open_ids: [],
         version: '0.0.0',
         host: 'localhost',
         id_tab: 0,
