@@ -263,7 +263,6 @@
           }
           this.open_packets = []
           this.open_packets.push(packet)
-          window.packet = packet
         } else {
           if (this.open_packets.includes(packet)){
             const index = this.open_packets.indexOf(packet);
@@ -271,6 +270,7 @@
           }
           this.open_packets.push(packet);
         }
+        window.packet = this.open_packets
       },
 
       isFiltered (packet) {
