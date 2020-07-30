@@ -18,6 +18,18 @@
         <input v-model='settings.server.host' type="text" placeholder="localhost:25565" class="bg-white border-b-2 focus:border-teal-400 focus:outline-none rounded py-2 px-4 block w-full appearance-none leading-normal placeholder-gray-600 focus:shadow">
         <p class="mb-1 mt-3">Proxy port:</p>
         <input v-model='settings.server.proxyPort' type="text" placeholder="25565" class="bg-white border-b-2 focus:border-teal-400 focus:outline-none rounded py-2 px-4 block w-full appearance-none leading-normal placeholder-gray-600 focus:shadow">
+
+        <p class="text-xs text-gray-700 my-2">Client settings</p>
+        <div @click='settings.server.target_server_is_online = !settings.server.target_server_is_online' class="text-xs flex items-center pb-3 pt-4 border-b border-gray-300 group cursor-pointer select-none">
+          <pre class="text-gray-900">Login with a real minecraft account? (necessary for online-mode servers): {{settings.server.target_server_is_online}}</pre>
+          <CheckSquareIcon class="ml-auto mr-4 text-teal-400" v-if="settings.server.target_server_is_online" size="1.5x"></CheckSquareIcon>
+          <SquareIcon class="ml-auto mr-4 text-gray-700 group-hover:text-teal-400" v-else size="1.5x"></SquareIcon>
+        </div>
+        <p class="mb-1 mt-3">Username (or email if you have a mojang account):</p>
+        <input v-model='settings.client.username' type="text" placeholder="Username" class="bg-white border-b-2 focus:border-teal-400 focus:outline-none rounded py-2 px-4 block w-full appearance-none leading-normal placeholder-gray-600 focus:shadow">
+        <p class="mb-1 mt-3">Password: </p>
+        <input v-model='settings.client.password' type="text" placeholder="Pa$$w0rd123" class="bg-white border-b-2 focus:border-teal-400 focus:outline-none rounded py-2 px-4 block w-full appearance-none leading-normal placeholder-gray-600 focus:shadow">
+
       </div>
       <div>
         <div class="text-xl">Ignored packets (custom)</div>
@@ -73,7 +85,7 @@
     </div>
     <div v-if="record.state !== 0" class="fixed top-0 left-0 h-screen w-screen z-10 flex items-center justify-center" style="background: rgba(255, 255, 255, .75)">
       <div class="absolute bottom-0 left-0 mb-5 ml-5 text-xs text-gray-700">
-        Recording on {{ host }} at {{ version }}
+        Recording on {{ settings.server.targetHost }} at {{ settings.version }}
       </div>
       <div class="absolute top-0 right-0 mt-5 mr-5">
         <span v-if="record.state === -1" title="Open settings" class="cursor-pointer mr-5" @click='openSettings'>

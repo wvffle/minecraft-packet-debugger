@@ -2,6 +2,7 @@
 
 'use strict'
 
+const { config } = require('../lib/config')
 const program = require('commander')
 program.version(require('../package.json').version)
   .option('-p, --port <number>', 'Port to run on. Default: 3000')
@@ -16,7 +17,8 @@ const proxy = require('../lib/proxy-server')
 const web = require('../lib/web-server')
 
 ;(async function () {
-  proxy.start('1.12.2')
+  proxy.setSettings(config)
+  proxy.start()
   const webPort = await web.listen(program.port || 3000)
 
   web.bindProxyInstance(proxy)
