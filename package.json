@@ -13,10 +13,12 @@
   },
   "devDependencies": {
     "@babel/polyfill": "^7.8.3",
+    "@vue/component-compiler-utils": "^3.2.0",
     "parcel-bundler": "^1.12.4",
     "postcss-modules": "^1.5.0",
     "standard": "^14.3.1",
-    "tailwindcss": "^1.2.0"
+    "tailwindcss": "^1.2.0",
+    "vue-template-compiler": "^2.6.11"
   },
   "browserslist": [
     "last 1 chrome versions"
@@ -35,7 +37,8 @@
     "mkdirp": "^1.0.3",
     "msgpack-lite": "^0.1.26",
     "vue": "^2.5.21",
-    "vue-feather-icons": "^5.0.0"
+    "vue-feather-icons": "^5.0.0",
+    "vue-hot-reload-api": "^2.3.4"
   },
   "repository": "https://github.com/wvffle/minecraft-packet-debugger.git",
   "author": "Kasper Seweryn <github@wvffle.net>"
