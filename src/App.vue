@@ -1,6 +1,6 @@
 <template>
   <div class="h-screen grid grid-cols-3 gap-5 px-5" style="grid-template-rows: max-content 1fr">
-    <div v-if="settings !== null" class="grid grid-cols-2 top-0 left-0 h-full w-full max-h-full overflow-y-auto p-5 gap-20 fixed z-20 bg-white">
+    <div v-if="settings !== null && settings_opened" class="grid grid-cols-2 top-0 left-0 h-full w-full max-h-full overflow-y-auto p-5 gap-20 fixed z-20 bg-white">
       <div class="absolute top-0 right-0 mt-5 mr-5">
         <span title="Close settings" class="cursor-pointer" @click='closeSettings'>
           <XIcon class="stroke-1 text-gray-400 hover:text-teal-400" size="2x"></XIcon>
@@ -9,10 +9,15 @@
       <div>
         <div class="text-xl">Server settings</div>
         <p class="text-xs text-gray-700 my-2">Server settings</p>
+        <div @click='settings.website.open_multiple_packets = !settings.website.open_multiple_packets' class="text-xs flex items-center pb-3 pt-4 border-b border-gray-300 group cursor-pointer select-none">
+          <pre class="text-gray-900">Open mutliple package at the same time: {{settings.website.open_multiple_packets}}</pre>
+          <CheckSquareIcon class="ml-auto mr-4 text-teal-400" v-if="settings.website.open_multiple_packets" size="1.5x"></CheckSquareIcon>
+          <SquareIcon class="ml-auto mr-4 text-gray-700 group-hover:text-teal-400" v-else size="1.5x"></SquareIcon>
+        </div>
         <p class="mb-1 mt-3">Target host:</p>
         <input v-model='settings.server.host' type="text" placeholder="localhost:25565" class="bg-white border-b-2 focus:border-teal-400 focus:outline-none rounded py-2 px-4 block w-full appearance-none leading-normal placeholder-gray-600 focus:shadow">
         <p class="mb-1 mt-3">Proxy port:</p>
-        <input v-model='settings.server.proxyPort' type="text" placeholder="25566" class="bg-white border-b-2 focus:border-teal-400 focus:outline-none rounded py-2 px-4 block w-full appearance-none leading-normal placeholder-gray-600 focus:shadow">
+        <input v-model='settings.server.proxyPort' type="text" placeholder="25565" class="bg-white border-b-2 focus:border-teal-400 focus:outline-none rounded py-2 px-4 block w-full appearance-none leading-normal placeholder-gray-600 focus:shadow">
       </div>
       <div>
         <div class="text-xl">Ignored packets (custom)</div>
@@ -66,12 +71,12 @@
         </a>
       </div>
     </div>
-    <div v-if="record.state !== 0 && settings === null" class="fixed top-0 left-0 h-screen w-screen z-10 flex items-center justify-center" style="background: rgba(255, 255, 255, .75)">
+    <div v-if="record.state !== 0" class="fixed top-0 left-0 h-screen w-screen z-10 flex items-center justify-center" style="background: rgba(255, 255, 255, .75)">
       <div class="absolute bottom-0 left-0 mb-5 ml-5 text-xs text-gray-700">
         Recording on {{ host }} at {{ version }}
       </div>
       <div class="absolute top-0 right-0 mt-5 mr-5">
-        <span v-if="settings === null && record.state === -1" title="Open settings" class="cursor-pointer mr-5" @click='openSettings'>
+        <span v-if="record.state === -1" title="Open settings" class="cursor-pointer mr-5" @click='openSettings'>
           <SettingsIcon class="stroke-1 text-gray-400 hover:text-teal-400" size="2x"></SettingsIcon>
         </span>
       </div>
@@ -153,7 +158,7 @@
             </div>
           </div>
           <!--        Transition -->
-          <div v-if="open_ids.includes(packet)" class="px-6">
+          <div v-if="open_packets.includes(packet)" class="px-6">
             <div class="border-b border-gray-200 mb-4"></div>
             <div class="grid mb-4" style="grid-template-columns:min-content 1fr">
               <div>
@@ -252,11 +257,20 @@
       open (packet) {
         this.id_tab = 0
 
-        if (this.open_ids.includes(packet)){
-          const index = this.open_ids.indexOf(packet);
-          return this.open_ids.splice(index, 1);
+        if(!this.settings.website.open_multiple_packets){
+          if (this.open_packets.size > 0) {
+            return this.open_packets.clear()
+          }
+          this.open_packets = []
+          this.open_packets.push(packet)
+          window.packet = packet
+        } else {
+          if (this.open_packets.includes(packet)){
+            const index = this.open_packets.indexOf(packet);
+            return this.open_packets.splice(index, 1);
+          }
+          this.open_packets.push(packet);
         }
-        this.open_ids.push(packet);
       },
 
       isFiltered (packet) {
@@ -338,10 +352,12 @@
           this.search.query = ''
         })
       },
-
-      async openSettings () {
+      async loadSettings() {
         const response = await fetch(`http://${HOST}/settings`)
         this.settings = await response.json()
+      },
+      async openSettings () {
+        this.settings_opened = true;
       },
       async closeSettings () {
         const { settings: body } = this
@@ -366,8 +382,10 @@
             this.search.packets = data.packets
           }
         }
-
-        this.settings = null
+        this.settings_opened = false
+        console.log(this.settings.website.open_multiple_packets)
+        // await this.loadSettings()
+        // this.settings = null
       },
     },
     data () {
@@ -380,7 +398,7 @@
           }
         },
         listening: false,
-        open_ids: [],
+        open_packets: [],
         version: '0.0.0',
         host: 'localhost',
         id_tab: 0,
@@ -389,7 +407,8 @@
         record: { messageQueue: [], state: -1 },
         tabs: [ 'Packet', 'Meta', 'Format' ],
         packets: [],
-        filters: {}
+        filters: {},
+        settings_opened: false
       }
     },
     async created () {
@@ -401,6 +420,7 @@
       if (data.packets) {
         this.search.packets = data.packets
       }
+      await this.loadSettings()
     },
   }
 </script>
