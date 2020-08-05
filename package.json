@@ -28,7 +28,7 @@
     "deep-extend": "^0.6.0",
     "env-paths": "^2.2.0",
     "ext-name": "^5.0.0",
-    "fastify": "^2.12.0",
+    "fastify": "^2.15.1",
     "fastify-websocket": "^1.1.0",
     "fastify-ws": "^1.0.3",
     "json-format-highlight": "^1.0.4",
